@@ -1,0 +1,6 @@
+[run]
+branch = True
+source = cluster_upgrade
+
+[report]
+ignore_errors = True
