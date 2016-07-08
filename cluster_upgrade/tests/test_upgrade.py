@@ -18,13 +18,13 @@ import copy
 import six
 
 from nailgun import consts
-from cluster_upgrade.upgrade import merge_attributes
 from nailgun.extensions.network_manager.objects.serializers import \
     network_configuration
 
 from . import base as base_tests
 from ..objects import adapters
 from ..objects import relations
+from ..upgrade import merge_attributes
 
 
 class TestUpgradeHelperCloneCluster(base_tests.BaseCloneClusterTest):
