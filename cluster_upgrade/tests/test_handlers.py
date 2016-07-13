@@ -235,7 +235,7 @@ class TestCopyVipsHandler(base.BaseIntegrationTest):
         relations.UpgradeRelationObject.create_relation(
             orig_cluster.id, new_cluster.id)
 
-        with mock.patch('nailgun.extensions.cluster_upgrade.handlers'
+        with mock.patch('cluster_upgrade.handlers'
                         '.upgrade.UpgradeHelper.copy_vips') as copy_vips_mc:
             resp = self.app.post(
                 reverse(
