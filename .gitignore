@@ -55,4 +55,4 @@ ChangeLog
 .*sw?
 
 # Files created by releasenotes build
-releasenotes/build
+extension.xml
