@@ -14,4 +14,4 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-EXTENSION = "nailgun.extensions.cluster_upgrade."
+EXTENSION = "cluster_upgrade."
