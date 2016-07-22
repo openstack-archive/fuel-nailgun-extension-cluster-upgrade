@@ -28,33 +28,35 @@ from nailgun import utils
 from .objects import adapters
 
 
-def merge_attributes(a, b):
+def merge_attributes(new, original):
     """Merge values of editable attributes.
 
-    The values of the b attributes have precedence over the values
-    of the a attributes.
+    The values of the original attributes have precedence over the values
+    of the new attributes.
     """
-    attrs = copy.deepcopy(b)
-    for section, pairs in six.iteritems(attrs):
-        if section == "repo_setup" or section not in a:
+    new = copy.deepcopy(new)
+
+    for section, pairs in six.iteritems(new):
+        if section == "repo_setup" or section not in original:
             continue
-        a_values = a[section]
-        for key, values in six.iteritems(pairs):
-            if key != "metadata" and key in a_values:
-                values["value"] = a_values[key]["value"]
+
+        orig_values = original[section]
+        for key, values in pairs.items():
+            if key != "metadata" and key in orig_values:
+                values["value"] = orig_values[key]["value"]
                 # NOTE: In the mitaka-9.0 release types of values dns_list and
                 # ntp_list were changed from 'text'
                 # (a string of comma-separated IP-addresses)
                 # to 'text_list' (a list of strings of IP-addresses).
-                if a_values[key]['type'] == 'text' and \
+                if orig_values[key]['type'] == 'text' and \
                         values['type'] == 'text_list':
                     values["value"] = values['value'].split(',')
-    return attrs
+    return new
 
 
-def merge_nets(a, b):
-    new_settings = copy.deepcopy(b)
-    source_networks = dict((n["name"], n) for n in a["networks"])
+def merge_nets(new, original):
+    new_settings = copy.deepcopy(new)
+    source_networks = dict((n["name"], n) for n in original["networks"])
     for net in new_settings["networks"]:
         if net["name"] not in source_networks:
             continue
@@ -64,7 +66,7 @@ def merge_nets(a, b):
                     key in source_net):
                 net[key] = source_net[key]
     networking_params = new_settings["networking_parameters"]
-    source_params = a["networking_parameters"]
+    source_params = original["networking_parameters"]
     for key, value in six.iteritems(networking_params):
         if key not in source_params:
             continue
@@ -111,10 +113,12 @@ class UpgradeHelper(object):
         #                cluster.
         new_cluster.generated_attrs = utils.dict_merge(
             new_cluster.generated_attrs,
-            orig_cluster.generated_attrs)
+            orig_cluster.generated_attrs
+        )
         new_cluster.editable_attrs = merge_attributes(
+            new_cluster.editable_attrs,
             orig_cluster.editable_attrs,
-            new_cluster.editable_attrs)
+        )
 
     @classmethod
     def transform_vips_for_net_groups_70(cls, vips):
@@ -155,8 +159,9 @@ class UpgradeHelper(object):
     def copy_network_config(cls, orig_cluster, new_cluster):
         nets_serializer = cls.network_serializers[orig_cluster.net_provider]
         nets = merge_nets(
+            nets_serializer.serialize_for_cluster(new_cluster.cluster),
             nets_serializer.serialize_for_cluster(orig_cluster.cluster),
-            nets_serializer.serialize_for_cluster(new_cluster.cluster))
+        )
 
         new_net_manager = new_cluster.get_network_manager()
 
