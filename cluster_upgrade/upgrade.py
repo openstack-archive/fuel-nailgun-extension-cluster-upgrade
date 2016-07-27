@@ -25,7 +25,9 @@ from nailgun.extensions.network_manager.objects.serializers import \
 from nailgun import objects
 from nailgun import utils
 
+from . import transformations
 from .objects import adapters
+
 
 
 def merge_attributes(a, b):
@@ -101,20 +103,24 @@ class UpgradeHelper(object):
 
     @classmethod
     def copy_attributes(cls, orig_cluster, new_cluster):
-        # TODO(akscram): Attributes should be copied including
-        #                borderline cases when some parameters are
-        #                renamed or moved into plugins. Also, we should
-        #                to keep special steps in copying of parameters
-        #                that know how to translate parameters from one
-        #                version to another. A set of this kind of steps
-        #                should define an upgrade path of a particular
-        #                cluster.
+        transformer = transformations.ClusterTransformer(
+            orig_cluster.release.environment_version,
+            new_cluster.release.environment_version,
+        )
+        attrs = transformer.transform_attributes({
+            'editable': orig_cluster.editable_attrs,
+            'generated': orig_cluster.generated_attrs
+        })
+
         new_cluster.generated_attrs = utils.dict_merge(
             new_cluster.generated_attrs,
-            orig_cluster.generated_attrs)
+            attrs['generated'],
+        )
+
         new_cluster.editable_attrs = merge_attributes(
-            orig_cluster.editable_attrs,
-            new_cluster.editable_attrs)
+            attrs['editable'],
+            new_cluster.editable_attrs,
+        )
 
     @classmethod
     def transform_vips_for_net_groups_70(cls, vips):
