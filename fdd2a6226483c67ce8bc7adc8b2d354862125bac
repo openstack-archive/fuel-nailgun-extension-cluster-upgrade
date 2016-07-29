@@ -1,0 +1,9 @@
+Code-Review+2: Ilya Kharin <akscram@gmail.com>
+Code-Review+2: Sergey Abramov <sabramov@mirantis.com>
+Workflow+1: Sergey Abramov <sabramov@mirantis.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Fri, 29 Jul 2016 14:41:37 +0000
+Reviewed-on: https://review.openstack.org/348422
+Project: openstack/fuel-nailgun-extension-cluster-upgrade
+Branch: refs/heads/master
