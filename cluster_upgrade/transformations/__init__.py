@@ -17,6 +17,7 @@ import copy
 from distutils.version import StrictVersion
 
 from . import cluster
+from . import vips
 
 
 class Transformer(object):
@@ -46,4 +47,10 @@ class Transformer(object):
 class ClusterTransformer(Transformer):
     transformers = (
         cluster.ClusterTransformation90,
+    )
+
+
+class VipsTransformer(Transformer):
+    transformers = (
+        vips.VipsTransformation70,
     )
