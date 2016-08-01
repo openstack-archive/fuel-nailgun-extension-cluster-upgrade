@@ -23,7 +23,6 @@ from nailgun import consts
 from nailgun.extensions.network_manager.objects.serializers import \
     network_configuration
 from nailgun import objects
-from nailgun import utils
 
 from .objects import adapters
 
@@ -52,6 +51,20 @@ def merge_attributes(a, b):
                         value.strip() for value in values['value'].split(',')
                     ]
     return attrs
+
+
+def merge_generated_attrs(a, b):
+    if not isinstance(b, dict):
+        return copy.deepcopy(b)
+    result = copy.deepcopy(a)
+    for k, v in six.iteritems(b):
+        if k == 'provision':
+            continue
+        if k in result and isinstance(result[k], dict):
+            result[k] = merge_generated_attrs(result[k], v)
+        else:
+            result[k] = copy.deepcopy(v)
+    return result
 
 
 def merge_nets(a, b):
@@ -91,6 +104,7 @@ class UpgradeHelper(object):
         cls.copy_network_config(orig_cluster, new_cluster)
         relations.UpgradeRelationObject.create_relation(orig_cluster.id,
                                                         new_cluster.id)
+        cls.change_env_settings(orig_cluster, new_cluster)
         return new_cluster
 
     @classmethod
@@ -111,7 +125,7 @@ class UpgradeHelper(object):
         #                version to another. A set of this kind of steps
         #                should define an upgrade path of a particular
         #                cluster.
-        new_cluster.generated_attrs = utils.dict_merge(
+        new_cluster.generated_attrs = merge_generated_attrs(
             new_cluster.generated_attrs,
             orig_cluster.generated_attrs)
         new_cluster.editable_attrs = merge_attributes(
@@ -119,8 +133,15 @@ class UpgradeHelper(object):
             new_cluster.editable_attrs)
 
     @classmethod
+    def change_env_settings(cls, orig_cluster, new_cluster):
+        attrs = new_cluster.attributes
+        if attrs['editable']['provision']['method']['value'] != 'image':
+            attrs['editable']['provision']['method']['value'] = 'image'
+
+    @classmethod
     def transform_vips_for_net_groups_70(cls, vips):
         """Rename or remove types of VIPs for 7.0 network groups.
+
 
         This method renames types of VIPs from older releases (<7.0) to
         be compatible with network groups of the 7.0 release according
