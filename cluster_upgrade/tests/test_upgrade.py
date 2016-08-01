@@ -97,8 +97,16 @@ class TestUpgradeHelperCloneCluster(base_tests.BaseCloneClusterTest):
 
         self.helper.copy_attributes(self.src_cluster, new_cluster)
 
-        self.assertEqual(self.src_cluster.generated_attrs,
-                         new_cluster.generated_attrs)
+        self.assertNotEqual(new_cluster.generated_attrs.get('provision'),
+                            self.src_cluster.generated_attrs.get('provision'))
+
+        # We make image_data in src_cluster and in new_cluster the same
+        # to validate that all other generated attributes are equal
+        generated_attrs = copy.deepcopy(self.src_cluster.generated_attrs)
+        generated_attrs['provision']['image_data'] = \
+            new_cluster.generated_attrs['provision']['image_data']
+
+        self.assertEqual(generated_attrs, new_cluster.generated_attrs)
         editable_attrs = self.src_cluster.editable_attrs
         for section, params in six.iteritems(new_cluster.editable_attrs):
             if section == "repo_setup":
@@ -211,3 +219,22 @@ class TestUpgradeHelperCloneCluster(base_tests.BaseCloneClusterTest):
         self.helper.copy_attributes(self.src_cluster, new_cluster)
         self._check_dns_and_ntp_list_values(
             new_cluster, ["4", "5", "6"], ["1", "2", "3"])
+
+    def test_change_env_settings(self):
+        new_cluster = self.helper.create_cluster_clone(self.src_cluster,
+                                                       self.data)
+        self.helper.copy_attributes(self.src_cluster, new_cluster)
+        attrs = new_cluster.attributes
+        self.helper.change_env_settings(self.src_cluster, new_cluster)
+        self.assertEqual('image',
+                         attrs['editable']['provision']['method']['value'])
+
+    def test_change_env_settings_no_editable_provision(self):
+        new_cluster = self.helper.create_cluster_clone(self.src_cluster,
+                                                       self.data)
+        self.helper.copy_attributes(self.src_cluster, new_cluster)
+        attrs = new_cluster.attributes
+        attrs['editable']['provision']['method']['value'] = 'cobbler'
+        self.helper.change_env_settings(self.src_cluster, new_cluster)
+        self.assertEqual('image',
+                         attrs['editable']['provision']['method']['value'])
