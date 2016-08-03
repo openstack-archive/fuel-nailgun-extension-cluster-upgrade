@@ -33,6 +33,10 @@ class ClusterUpgradeExtension(extensions.BaseExtension):
          'handler': handlers.NodeReassignHandler},
         {'uri': r'/clusters/(?P<cluster_id>\d+)/upgrade/vips/?$',
          'handler': handlers.CopyVIPsHandler},
+
+        {'uri': r'/nodes/(?P<node_id>\d+)/volumes/partition_info/?$',
+         'handler': handlers.UpdatePartitionInfo},
+
     ]
 
     @classmethod

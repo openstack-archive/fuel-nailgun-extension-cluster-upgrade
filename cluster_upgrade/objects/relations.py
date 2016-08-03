@@ -17,6 +17,7 @@
 from nailgun.db import db
 
 from .. import models
+from . import adapters
 
 
 class UpgradeRelationObject(object):
@@ -46,3 +47,16 @@ class UpgradeRelationObject(object):
             seed_cluster_id=seed_cluster_id)
         db.add(relation)
         db.flush()
+
+    @classmethod
+    def get_clusters_pair(cls, cluster_id):
+        relation = cls.get_cluster_relation(cluster_id)
+
+        orig_cluster = adapters.NailgunClusterAdapter.get_by_uid(
+            relation.orig_cluster_id
+        )
+        new_cluster = adapters.NailgunClusterAdapter.get_by_uid(
+            relation.seed_cluster_id
+        )
+
+        return orig_cluster, new_cluster

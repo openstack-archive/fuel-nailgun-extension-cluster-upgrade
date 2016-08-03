@@ -20,6 +20,7 @@ from nailgun.api.v1.handlers import base
 from nailgun import objects
 from nailgun.task import manager
 
+from . import transformations
 from . import upgrade
 from . import validators
 from .objects import adapters
@@ -129,13 +130,44 @@ class CopyVIPsHandler(base.BaseHandler):
         self.checked_data(cluster=cluster, relation=relation)
 
         # get original cluster object and create adapter with it
-        orig_cluster_adapter = \
-            adapters.NailgunClusterAdapter(
-                adapters.NailgunClusterAdapter.get_by_uid(
-                    relation.orig_cluster_id)
-            )
+        orig_cluster_adapter = adapters.NailgunClusterAdapter.get_by_uid(
+            relation.orig_cluster_id
+        )
 
         seed_cluster_adapter = adapters.NailgunClusterAdapter(cluster)
 
         upgrade.UpgradeHelper.copy_vips(orig_cluster_adapter,
                                         seed_cluster_adapter)
+
+
+class UpdatePartitionInfo(base.BaseHandler):
+    single = objects.Node
+
+    @base.content
+    def POST(self, node_id):
+        """Transform node partition info
+
+        :param node_id: id of node which partition info will be updated
+
+        :http: * 200 (OK)
+               * 404 (Node or Cluster not found)
+        """
+        from .objects import relations
+
+        node = adapters.NailgunNodeAdapter(
+            self.get_object_or_404(self.single, node_id)
+        )
+        volumes = node.get_volumes()
+
+        orig_cluster, new_cluster = (
+            relations.UpgradeRelationObject.get_clusters_pair(node.cluster_id)
+        )
+
+        transformer = transformations.VolumesTransformer(
+            orig_cluster.release.environment_version,
+            new_cluster.release.environment_version,
+        )
+        volumes = transformer.transform_node_volumes(volumes)
+
+        node.set_volumes(volumes)
+        return {}
