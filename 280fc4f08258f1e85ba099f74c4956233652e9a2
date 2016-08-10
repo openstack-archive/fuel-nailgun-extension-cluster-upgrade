@@ -1,0 +1,9 @@
+Code-Review+1: Vladimir Khlyunev <vkhlyunev@mirantis.com>
+Code-Review+2: Sergey Abramov <sabramov@mirantis.com>
+Workflow+1: Sergey Abramov <sabramov@mirantis.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Wed, 10 Aug 2016 16:27:46 +0000
+Reviewed-on: https://review.openstack.org/353530
+Project: openstack/fuel-nailgun-extension-cluster-upgrade
+Branch: refs/heads/stable/mitaka
