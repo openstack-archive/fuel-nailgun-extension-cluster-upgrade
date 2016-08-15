@@ -1,0 +1,8 @@
+Code-Review+2: Ilya Kharin <akscram@gmail.com>
+Workflow+1: Ilya Kharin <akscram@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Mon, 15 Aug 2016 16:53:33 +0000
+Reviewed-on: https://review.openstack.org/355555
+Project: openstack/fuel-nailgun-extension-cluster-upgrade
+Branch: refs/heads/stable/mitaka
