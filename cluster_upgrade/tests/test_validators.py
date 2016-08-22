@@ -58,6 +58,14 @@ class TestClusterUpgradeValidator(tests_base.BaseCloneClusterTest):
             self.validator.validate_release_upgrade(self.dst_release,
                                                     self.src_release)
 
+    def test_validate_release_upgrade_to_different_os(self):
+        self.dst_release.operating_system = consts.RELEASE_OS.centos
+        msg = "^Changing of operating system is not possible during upgrade " \
+              "\(from {0} to {1}\).$".format("Ubuntu", "CentOS")
+        with self.assertRaisesRegexp(errors.InvalidData, msg):
+            self.validator.validate_release_upgrade(self.src_release,
+                                                    self.dst_release)
+
     def test_validate_cluster_name(self):
         self.validator.validate_cluster_name("cluster-42")
 

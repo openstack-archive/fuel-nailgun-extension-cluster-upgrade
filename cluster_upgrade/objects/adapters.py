@@ -101,6 +101,10 @@ class NailgunReleaseAdapter(object):
         return release
 
     @property
+    def operating_system(self):
+        return self.release.operating_system
+
+    @property
     def is_deployable(self):
         return objects.Release.is_deployable(self.release)
 
