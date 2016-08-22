@@ -35,6 +35,10 @@ class NailgunClusterAdapter(object):
         return self.cluster.name
 
     @property
+    def operating_system(self):
+        return self.cluster.operating_system
+
+    @property
     def net_provider(self):
         return self.cluster.net_provider
 
