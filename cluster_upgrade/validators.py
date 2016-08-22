@@ -62,6 +62,12 @@ class ClusterUpgradeValidator(base.BasicValidator):
                 "this release is equal or lower than the release of the "
                 "original cluster.".format(new_release.id),
                 log_message=True)
+        if orig_release.operating_system != new_release.operating_system:
+            raise errors.InvalidData(
+                "Changing of operating system is not possible during upgrade "
+                "(from {0} to {1}).".format(orig_release.operating_system,
+                                            new_release.operating_system),
+                log_message=True)
 
     @classmethod
     def validate_cluster_name(cls, cluster_name):
