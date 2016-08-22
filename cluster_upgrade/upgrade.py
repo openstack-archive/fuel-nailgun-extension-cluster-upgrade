@@ -25,7 +25,9 @@ from nailgun.extensions.network_manager.objects.serializers import \
 from nailgun import objects
 from nailgun import utils
 
+from . import transformations  # That's weird, but that's how hacking likes
 from .objects import adapters
+from .transformations import cluster as cluster_trs
 
 
 def merge_attributes(a, b):
@@ -42,23 +44,7 @@ def merge_attributes(a, b):
         for key, values in six.iteritems(pairs):
             if key != "metadata" and key in a_values:
                 values["value"] = a_values[key]["value"]
-                # NOTE: In the mitaka-9.0 release types of values dns_list and
-                # ntp_list were changed from 'text'
-                # (a string of comma-separated IP-addresses)
-                # to 'text_list' (a list of strings of IP-addresses).
-                if a_values[key]['type'] == 'text' and \
-                        values['type'] == 'text_list':
-                    values["value"] = [
-                        value.strip() for value in values['value'].split(',')
-                    ]
     return attrs
-
-
-def merge_generated_attrs(new_attrs, orig_attrs):
-    # skip attributes that should be generated for new cluster
-    attrs = copy.deepcopy(orig_attrs)
-    attrs.pop('provision', None)
-    return utils.dict_merge(new_attrs, attrs)
 
 
 def merge_nets(a, b):
@@ -88,6 +74,7 @@ class UpgradeHelper(object):
         consts.CLUSTER_NET_PROVIDERS.nova_network:
         network_configuration.NovaNetworkConfigurationSerializer,
     }
+    cluster_transformations = transformations.Lazy(cluster_trs.Manager)
 
     @classmethod
     def clone_cluster(cls, orig_cluster, data):
@@ -111,20 +98,24 @@ class UpgradeHelper(object):
 
     @classmethod
     def copy_attributes(cls, orig_cluster, new_cluster):
-        # TODO(akscram): Attributes should be copied including
-        #                borderline cases when some parameters are
-        #                renamed or moved into plugins. Also, we should
-        #                to keep special steps in copying of parameters
-        #                that know how to translate parameters from one
-        #                version to another. A set of this kind of steps
-        #                should define an upgrade path of a particular
-        #                cluster.
-        new_cluster.generated_attrs = merge_generated_attrs(
+        attrs = cls.cluster_transformations.apply(
+            orig_cluster.release.environment_version,
+            new_cluster.release.environment_version,
+            {
+                'editable': orig_cluster.editable_attrs,
+                'generated': orig_cluster.generated_attrs,
+            },
+        )
+
+        new_cluster.generated_attrs = utils.dict_merge(
             new_cluster.generated_attrs,
-            orig_cluster.generated_attrs)
+            attrs['generated'],
+        )
+
         new_cluster.editable_attrs = merge_attributes(
-            orig_cluster.editable_attrs,
-            new_cluster.editable_attrs)
+            attrs['editable'],
+            new_cluster.editable_attrs,
+        )
 
     @classmethod
     def change_env_settings(cls, orig_cluster, new_cluster):
