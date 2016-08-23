@@ -17,6 +17,7 @@ from nailgun.test import base as nailgun_test_base
 import six
 
 from .. import transformations
+from ..transformations import cluster
 
 
 class TestTransformations(nailgun_test_base.BaseUnitTest):
@@ -177,3 +178,44 @@ class TestLazy(nailgun_test_base.BaseUnitTest):
         lazy_obj = transformations.Lazy(mgr_cls_mock)
         lazy_obj.apply()
         self.assertEqual(lazy_obj.apply, mgr_cls_mock.return_value.apply)
+
+
+class TestClusterTransformers(nailgun_test_base.BaseUnitTest):
+    def setUp(self):
+        self.data = {
+            'editable': {
+                'external_dns': {
+                    'dns_list': {'type': 'text', 'value': 'a,b,\nc, d'}},
+                'external_ntp': {
+                    'ntp_list': {'type': 'text', 'value': 'a,b,\nc, d'}},
+            },
+            'generated': {
+                'provision': {},
+            },
+        }
+
+    def test_dns_list(self):
+        res = cluster.transform_dns_list(self.data)
+        self.assertEqual(
+            res['editable']['external_dns']['dns_list'],
+            {'type': 'text_list', 'value': ['a', 'b', 'c', 'd']},
+        )
+
+    def test_ntp_list(self):
+        res = cluster.transform_ntp_list(self.data)
+        self.assertEqual(
+            res['editable']['external_ntp']['ntp_list'],
+            {'type': 'text_list', 'value': ['a', 'b', 'c', 'd']},
+        )
+
+    def test_provision(self):
+        res = cluster.drop_generated_provision(self.data)
+        self.assertNotIn('provision', res['generated'])
+
+    def test_manager(self):
+        man = cluster.Manager()  # verify default config and entry points
+        self.assertEqual(man.transformers, [(version.StrictVersion('9.0'), [
+            cluster.transform_dns_list,
+            cluster.transform_ntp_list,
+            cluster.drop_generated_provision,
+        ])])

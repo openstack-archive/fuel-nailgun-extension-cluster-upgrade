@@ -50,7 +50,7 @@ class TestUpgradeHelperCloneCluster(base_tests.BaseCloneClusterTest):
                 {"metadata": "src_fake",
                  "key":
                      {"type": "text",
-                      "value": "fake1, fake2,fake3 , fake4"},
+                      "value": "fake"},
                  "src_key": "src_data"
                  },
             "repo_setup": "src_data"
@@ -69,9 +69,6 @@ class TestUpgradeHelperCloneCluster(base_tests.BaseCloneClusterTest):
         result = upgrade.merge_attributes(
             src_editable_attrs, new_editable_attrs
         )
-        new_editable_attrs["test"]["key"]["value"] = [
-            "fake1", "fake2", "fake3", "fake4"
-        ]
         self.assertEqual(result, new_editable_attrs)
 
     def test_create_cluster_clone(self):
