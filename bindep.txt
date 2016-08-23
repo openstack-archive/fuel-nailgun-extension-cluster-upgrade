@@ -1,0 +1,6 @@
+libpq-dev
+postgresql
+postgresql-client
+# We don't use these, but mysql-prep step is in template job
+mysql-client
+mysql-server
