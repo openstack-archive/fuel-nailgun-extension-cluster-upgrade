@@ -196,6 +196,16 @@ class NailgunNodeAdapter(object):
     def add_pending_change(self, change):
         objects.Node.add_pending_change(self.node, change)
 
+    def get_volumes(self):
+        from nailgun.extensions.volume_manager import extension
+        return extension.VolumeManagerExtension.get_node_volumes(self.node)
+
+    def set_volumes(self, volumes):
+        from nailgun.extensions.volume_manager import extension
+        return extension.VolumeManagerExtension.set_node_volumes(
+            self.node, volumes
+        )
+
 
 class NailgunNetworkGroupAdapter(object):
 

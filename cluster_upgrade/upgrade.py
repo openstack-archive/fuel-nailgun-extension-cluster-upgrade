@@ -28,6 +28,7 @@ from nailgun import utils
 from . import transformations  # That's weird, but that's how hacking likes
 from .objects import adapters
 from .transformations import cluster as cluster_trs
+from .transformations import volumes as volumes_trs
 
 
 def merge_attributes(a, b):
@@ -75,6 +76,7 @@ class UpgradeHelper(object):
         network_configuration.NovaNetworkConfigurationSerializer,
     }
     cluster_transformations = transformations.Lazy(cluster_trs.Manager)
+    volumes_transformations = transformations.Lazy(volumes_trs.Manager)
 
     @classmethod
     def clone_cluster(cls, orig_cluster, data):
@@ -214,6 +216,13 @@ class UpgradeHelper(object):
     def assign_node_to_cluster(cls, node, seed_cluster, roles, pending_roles):
         orig_cluster = adapters.NailgunClusterAdapter.get_by_uid(
             node.cluster_id)
+
+        volumes = cls.volumes_transformations.apply(
+            orig_cluster.release.environment_version,
+            seed_cluster.release.environment_version,
+            node.get_volumes(),
+        )
+        node.set_volumes(volumes)
 
         orig_manager = orig_cluster.get_network_manager()
 
