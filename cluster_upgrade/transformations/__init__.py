@@ -64,8 +64,8 @@ class Manager(object):
     def apply(self, from_version, to_version, data):
         strict_from = distutils.version.StrictVersion(from_version)
         strict_to = distutils.version.StrictVersion(to_version)
-        assert strict_from < strict_to, \
-            "from_version must be smaller than to_version"
+        assert strict_from <= strict_to, \
+            "from_version must not be greater than to_version"
         data = copy.deepcopy(data)
         for version, transformers in self.transformers:
             if version <= strict_from:
