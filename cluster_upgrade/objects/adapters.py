@@ -14,6 +14,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from nailgun.extensions.volume_manager import extension as volume_ext
 from nailgun import objects
 
 
@@ -62,6 +63,14 @@ class NailgunClusterAdapter(object):
     def editable_attrs(self, attrs):
         self.cluster.attributes.editable = attrs
 
+    @property
+    def network_template(self):
+        return self.cluster.network_config.configuration_template
+
+    @network_template.setter
+    def network_template(self, template):
+        self.cluster.network_config.configuration_template = template
+
     def get_create_data(self):
         return objects.Cluster.get_create_data(self.cluster)
 
@@ -70,8 +79,8 @@ class NailgunClusterAdapter(object):
             instance=self.cluster)
         return NailgunNetworkManager(self.cluster, net_manager)
 
-    def to_json(self):
-        return objects.Cluster.to_json(self.cluster)
+    def to_dict(self):
+        return objects.Cluster.to_dict(self.cluster)
 
     @classmethod
     def get_by_uid(cls, cluster_id):
@@ -95,6 +104,10 @@ class NailgunReleaseAdapter(object):
         release = objects.Release.get_by_uid(
             uid, fail_if_not_found=fail_if_not_found)
         return release
+
+    @property
+    def operating_system(self):
+        return self.release.operating_system
 
     @property
     def is_deployable(self):
@@ -174,6 +187,10 @@ class NailgunNodeAdapter(object):
         return self.node.status
 
     @property
+    def nic_interfaces(self):
+        return self.node.nic_interfaces
+
+    @property
     def error_type(self):
         return self.node.error_type
 
@@ -191,6 +208,14 @@ class NailgunNodeAdapter(object):
 
     def add_pending_change(self, change):
         objects.Node.add_pending_change(self.node, change)
+
+    def get_volumes(self):
+        return volume_ext.VolumeManagerExtension.get_node_volumes(self.node)
+
+    def set_volumes(self, volumes):
+        return volume_ext.VolumeManagerExtension.set_node_volumes(
+            self.node, volumes
+        )
 
 
 class NailgunNetworkGroupAdapter(object):

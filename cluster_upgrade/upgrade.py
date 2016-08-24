@@ -14,9 +14,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import collections
 import copy
-from distutils import version
 import six
 
 from nailgun import consts
@@ -24,7 +22,11 @@ from nailgun import objects
 from nailgun.objects.serializers import network_configuration
 from nailgun import utils
 
+from . import transformations  # That's weird, but that's how hacking likes
 from .objects import adapters
+from .transformations import cluster as cluster_trs
+from .transformations import vip
+from .transformations import volumes as volumes_trs
 
 
 def merge_attributes(a, b):
@@ -41,23 +43,7 @@ def merge_attributes(a, b):
         for key, values in six.iteritems(pairs):
             if key != "metadata" and key in a_values:
                 values["value"] = a_values[key]["value"]
-                # NOTE: In the mitaka-9.0 release types of values dns_list and
-                # ntp_list were changed from 'text'
-                # (a string of comma-separated IP-addresses)
-                # to 'text_list' (a list of strings of IP-addresses).
-                if a_values[key]['type'] == 'text' and \
-                        values['type'] == 'text_list':
-                    values["value"] = [
-                        value.strip() for value in values['value'].split(',')
-                    ]
     return attrs
-
-
-def merge_generated_attrs(new_attrs, orig_attrs):
-    # skip attributes that should be generated for new cluster
-    attrs = copy.deepcopy(orig_attrs)
-    attrs.pop('provision', None)
-    return utils.dict_merge(new_attrs, attrs)
 
 
 def merge_nets(a, b):
@@ -87,6 +73,9 @@ class UpgradeHelper(object):
         consts.CLUSTER_NET_PROVIDERS.nova_network:
         network_configuration.NovaNetworkConfigurationSerializer,
     }
+    cluster_transformations = transformations.Lazy(cluster_trs.Manager)
+    vip_transformations = transformations.Lazy(vip.Manager)
+    volumes_transformations = transformations.Lazy(volumes_trs.Manager)
 
     @classmethod
     def clone_cluster(cls, orig_cluster, data):
@@ -110,60 +99,29 @@ class UpgradeHelper(object):
 
     @classmethod
     def copy_attributes(cls, orig_cluster, new_cluster):
-        # TODO(akscram): Attributes should be copied including
-        #                borderline cases when some parameters are
-        #                renamed or moved into plugins. Also, we should
-        #                to keep special steps in copying of parameters
-        #                that know how to translate parameters from one
-        #                version to another. A set of this kind of steps
-        #                should define an upgrade path of a particular
-        #                cluster.
-        new_cluster.generated_attrs = merge_generated_attrs(
+        attrs = cls.cluster_transformations.apply(
+            orig_cluster.release.environment_version,
+            new_cluster.release.environment_version,
+            {
+                'editable': orig_cluster.editable_attrs,
+                'generated': orig_cluster.generated_attrs,
+            },
+        )
+
+        new_cluster.generated_attrs = utils.dict_merge(
             new_cluster.generated_attrs,
-            orig_cluster.generated_attrs)
+            attrs['generated'],
+        )
+
         new_cluster.editable_attrs = merge_attributes(
-            orig_cluster.editable_attrs,
-            new_cluster.editable_attrs)
+            attrs['editable'],
+            new_cluster.editable_attrs,
+        )
 
     @classmethod
     def change_env_settings(cls, orig_cluster, new_cluster):
         attrs = new_cluster.attributes
         attrs['editable']['provision']['method']['value'] = 'image'
-
-    @classmethod
-    def transform_vips_for_net_groups_70(cls, vips):
-        """Rename or remove types of VIPs for 7.0 network groups.
-
-        This method renames types of VIPs from older releases (<7.0) to
-        be compatible with network groups of the 7.0 release according
-        to the rules:
-
-            management: haproxy -> management
-            public: haproxy -> public
-            public: vrouter -> vrouter_pub
-
-        Note, that in the result VIPs are present only those IPs that
-        correspond to the given rules.
-        """
-        rename_vip_rules = {
-            "management": {
-                "haproxy": "management",
-                "vrouter": "vrouter",
-            },
-            "public": {
-                "haproxy": "public",
-                "vrouter": "vrouter_pub",
-            },
-        }
-        renamed_vips = collections.defaultdict(dict)
-        for ng_name, vips in six.iteritems(vips):
-            ng_vip_rules = rename_vip_rules[ng_name]
-            for vip_name, vip_addr in six.iteritems(vips):
-                if vip_name not in ng_vip_rules:
-                    continue
-                new_vip_name = ng_vip_rules[vip_name]
-                renamed_vips[ng_name][new_vip_name] = vip_addr
-        return renamed_vips
 
     @classmethod
     def copy_network_config(cls, orig_cluster, new_cluster):
@@ -181,17 +139,16 @@ class UpgradeHelper(object):
         orig_net_manager = orig_cluster.get_network_manager()
         new_net_manager = new_cluster.get_network_manager()
 
-        vips = orig_net_manager.get_assigned_vips()
-        for ng_name in vips:
-            if ng_name not in (consts.NETWORKS.public,
-                               consts.NETWORKS.management):
-                vips.pop(ng_name)
-        # NOTE(akscram): In the 7.0 release was introduced networking
-        #                templates that use the vip_name column as
-        #                unique names of VIPs.
-        if version.LooseVersion(orig_cluster.release.environment_version) < \
-                version.LooseVersion("7.0"):
-            vips = cls.transform_vips_for_net_groups_70(vips)
+        vips = {}
+        assigned_vips = orig_net_manager.get_assigned_vips()
+        for ng_name in (consts.NETWORKS.public, consts.NETWORKS.management):
+            vips[ng_name] = assigned_vips[ng_name]
+
+        vips = cls.vip_transformations.apply(
+            orig_cluster.release.environment_version,
+            new_cluster.release.environment_version,
+            vips
+        )
         new_net_manager.assign_given_vips_for_net_groups(vips)
         new_net_manager.assign_vips_for_net_groups()
 
@@ -224,6 +181,13 @@ class UpgradeHelper(object):
         orig_cluster = adapters.NailgunClusterAdapter.get_by_uid(
             node.cluster_id)
 
+        volumes = cls.volumes_transformations.apply(
+            orig_cluster.release.environment_version,
+            seed_cluster.release.environment_version,
+            node.get_volumes(),
+        )
+        node.set_volumes(volumes)
+
         orig_manager = orig_cluster.get_network_manager()
 
         netgroups_id_mapping = cls.get_netgroups_id_mapping(
@@ -231,10 +195,13 @@ class UpgradeHelper(object):
 
         node.update_cluster_assignment(seed_cluster, roles, pending_roles)
         objects.Node.set_netgroups_ids(node, netgroups_id_mapping)
-        orig_manager.set_nic_assignment_netgroups_ids(
-            node, netgroups_id_mapping)
-        orig_manager.set_bond_assignment_netgroups_ids(
-            node, netgroups_id_mapping)
+
+        if not seed_cluster.network_template:
+            orig_manager.set_nic_assignment_netgroups_ids(
+                node, netgroups_id_mapping)
+            orig_manager.set_bond_assignment_netgroups_ids(
+                node, netgroups_id_mapping)
+
         node.add_pending_change(consts.CLUSTER_CHANGES.interfaces)
 
     @classmethod
