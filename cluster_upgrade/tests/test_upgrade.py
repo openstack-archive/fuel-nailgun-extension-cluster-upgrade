@@ -20,6 +20,7 @@ import six
 from nailgun import consts
 from nailgun.extensions.network_manager.objects.serializers import \
     network_configuration
+from nailgun.test.base import fake_tasks
 
 from .. import upgrade
 from . import base as base_tests
@@ -236,3 +237,44 @@ class TestUpgradeHelperCloneCluster(base_tests.BaseCloneClusterTest):
         self.helper.change_env_settings(self.src_cluster, new_cluster)
         self.assertEqual('image',
                          attrs['editable']['provision']['method']['value'])
+
+    def get_assigned_nets(self, node):
+        assigned_nets = {}
+        for iface in node.nic_interfaces:
+            nets = [net.name for net in iface.assigned_networks_list]
+            assigned_nets[iface.name] = nets
+        return assigned_nets
+
+    @fake_tasks()
+    def assign_node_to_cluster(self, template=None):
+        new_cluster = self.helper.clone_cluster(self.src_cluster, self.data)
+        node = adapters.NailgunNodeAdapter(self.src_cluster.cluster.nodes[0])
+
+        orig_assigned_nets = self.get_assigned_nets(node)
+
+        if template:
+            net_template = self.env.read_fixtures(['network_template_80'])[0]
+            new_cluster.network_template = net_template
+            orig_assigned_nets = {
+                'eth0': ['fuelweb_admin'], 'eth1': ['public', 'management']
+            }
+
+        self.helper.assign_node_to_cluster(node, new_cluster, node.roles, [])
+        self.db.refresh(new_cluster.cluster)
+
+        self.assertEqual(node.cluster_id, new_cluster.id)
+
+        self.env.clusters.append(new_cluster.cluster)
+        task = self.env.launch_provisioning_selected(cluster_id=new_cluster.id)
+        self.assertEqual(task.status, consts.TASK_STATUSES.ready)
+        for n in new_cluster.cluster.nodes:
+            self.assertEqual(consts.NODE_STATUSES.provisioned, n.status)
+
+        new_assigned_nets = self.get_assigned_nets(node)
+        self.assertEqual(orig_assigned_nets, new_assigned_nets)
+
+    def test_assign_node_to_cluster(self):
+        self.assign_node_to_cluster()
+
+    def test_assign_node_to_cluster_with_template(self):
+        self.assign_node_to_cluster(template=True)
