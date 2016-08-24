@@ -143,3 +143,45 @@ class CopyVIPsHandler(base.BaseHandler):
 
         upgrade.UpgradeHelper.copy_vips(orig_cluster_adapter,
                                         seed_cluster_adapter)
+
+
+class CreateUpgradeReleaseHandler(base.BaseHandler):
+    @staticmethod
+    def merge_network_roles(base_nets, orig_nets):
+        """Create network metadata based on two releases.
+
+        Overwrite base default_mapping by orig default_maping values.
+        """
+        orig_network_dict = {n['id']: n for n in orig_nets}
+        for base_net in base_nets:
+            orig_net = orig_network_dict.get(base_net['id'])
+            if orig_net is None:
+                orig_net = base_net
+            base_net['default_mapping'] = orig_net['default_mapping']
+        return base_net
+
+    @base.serialize
+    def POST(self, cluster_id, release_id):
+        """Create release for upgrade purposes.
+
+        Creates a new release with network_roles_metadata based the given
+        release and re-use network parameters from the given cluster.
+
+        :returns: JSON representation of the created cluster
+        :http: * 200 (OK)
+               * 404 (Cluster or release not found.)
+        """
+        base_release = self.get_object_or_404(objects.Release, release_id)
+        orig_cluster = self.get_object_or_404(objects.Cluster, cluster_id)
+        orig_release = orig_cluster.release
+
+        network_metadata = self.merge_network_roles(
+            base_release.network_roles_metadata,
+            orig_release.network_roles_metadata)
+        data = objects.Release.to_dict(base_release)
+        data['network_roles_metadata'] = network_metadata
+        data['name'] = '{0} Upgrade ({1})'.format(
+            base_release.name, orig_release.id)
+        del data['id']
+        new_release = objects.Release.create(data)
+        return new_release.to_dict()
