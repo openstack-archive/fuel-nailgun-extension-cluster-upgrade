@@ -143,3 +143,37 @@ class CopyVIPsHandler(base.BaseHandler):
 
         upgrade.UpgradeHelper.copy_vips(orig_cluster_adapter,
                                         seed_cluster_adapter)
+
+
+class CreateUpgradeRelease(base.BaseHandler):
+
+    @staticmethod
+    def _merge_network_roles(seed_nets, orig_nets):
+        ''' Generates new network metadata base on seed and orig data
+
+        Overwrite seed network default_mapping on orig default_maping value
+        if it exists in orig_net list.
+        '''
+        orig_network_dict = {n['id']: n for n in orig_nets}
+        for seed_net in seed_nets:
+            orig_net = orig_network_dict.get(seed_net['id'])
+            if orig_net is None:
+                orig_net = seed_net
+            seed_net['default_mapping'] = orig_net['default_mapping']
+        return seed_net
+
+    @base.content
+    def POST(self, cluster_id, release_id):
+        seed_release = self.get_object_or_404(objects.Release, release_id)
+        orig_cluster = self.get_object_or_404(objects.Cluster, cluster_id)
+        orig_release = orig_cluster.release
+        seed_network = self._merge_network_roles(
+            seed_release.network_roles_metadata,
+            orig_release.network_roles_metadata)
+        data = objects.Release.to_dict(seed_release)
+        data['network_roles_metadata'] = seed_network
+        data['name'] = '{0} Upgrade ({1})'.format(
+            seed_release.name, orig_release.id)
+        del data['id']
+        new_release = objects.Release.create(data)
+        return new_release.to_json()
