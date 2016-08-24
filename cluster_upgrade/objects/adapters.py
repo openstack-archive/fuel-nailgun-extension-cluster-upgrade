@@ -14,6 +14,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from nailgun.extensions.volume_manager import extension as volume_ext
 from nailgun import objects
 
 
@@ -207,6 +208,14 @@ class NailgunNodeAdapter(object):
 
     def add_pending_change(self, change):
         objects.Node.add_pending_change(self.node, change)
+
+    def get_volumes(self):
+        return volume_ext.VolumeManagerExtension.get_node_volumes(self.node)
+
+    def set_volumes(self, volumes):
+        return volume_ext.VolumeManagerExtension.set_node_volumes(
+            self.node, volumes
+        )
 
 
 class NailgunNetworkGroupAdapter(object):
