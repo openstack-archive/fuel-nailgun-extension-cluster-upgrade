@@ -247,3 +247,19 @@ class TestCopyVipsHandler(base.BaseIntegrationTest):
 
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(copy_vips_mc.called)
+
+
+class TestCreateUpgradeReleaseHandler(base.BaseIntegrationTest):
+
+    def test_clone_release(self):
+        new_cluster = self.env.create_cluster(api=False)
+        release = self.env.create_release(
+            operating_system=consts.RELEASE_OS.ubuntu, version="new_version")
+        uri = reverse(
+            'CreateUpgradeReleaseHandler',
+            kwargs={'cluster_id': new_cluster.id, 'release_id': release.id})
+        resp = self.app.post(uri, headers=self.default_headers)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(
+            '{0} Upgrade ({1})'.format(release.name, new_cluster.release.id),
+            resp.json_body['name'])
