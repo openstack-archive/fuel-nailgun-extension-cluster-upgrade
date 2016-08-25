@@ -14,6 +14,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import copy
 import six
 
 from nailgun.api.v1.handlers import base
@@ -152,13 +153,14 @@ class CreateUpgradeReleaseHandler(base.BaseHandler):
 
         Overwrite base default_mapping by orig default_maping values.
         """
+        base_nets = copy.deepcopy(base_nets)
+        orig_nets = copy.deepcopy(orig_nets)
         orig_network_dict = {n['id']: n for n in orig_nets}
         for base_net in base_nets:
             orig_net = orig_network_dict.get(base_net['id'])
-            if orig_net is None:
-                orig_net = base_net
-            base_net['default_mapping'] = orig_net['default_mapping']
-        return base_net
+            if orig_net is not None:
+                base_net['default_mapping'] = orig_net['default_mapping']
+        return base_nets
 
     @base.serialize
     def POST(self, cluster_id, release_id):
@@ -174,14 +176,13 @@ class CreateUpgradeReleaseHandler(base.BaseHandler):
         base_release = self.get_object_or_404(objects.Release, release_id)
         orig_cluster = self.get_object_or_404(objects.Cluster, cluster_id)
         orig_release = orig_cluster.release
-
-        network_metadata = self.merge_network_roles(
-            base_release.network_roles_metadata,
-            orig_release.network_roles_metadata)
-        data = objects.Release.to_dict(base_release)
+        network_metadata = self.merge_network_roles(base_release, orig_release)
+        data = dict(base_release)
         data['network_roles_metadata'] = network_metadata
         data['name'] = '{0} Upgrade ({1})'.format(
             base_release.name, orig_release.id)
+        deployment_tasks = objects.Release.get_deployment_tasks(base_release)
+        data['deployment_tasks'] = deployment_tasks
         del data['id']
         new_release = objects.Release.create(data)
-        return new_release.to_dict()
+        return objects.Release.to_dict(new_release)
