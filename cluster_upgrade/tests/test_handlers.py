@@ -261,7 +261,11 @@ class TestCreateUpgradeReleaseHandler(base.BaseIntegrationTest):
         uri = reverse(
             'CreateUpgradeReleaseHandler',
             kwargs={'cluster_id': new_cluster.id, 'release_id': release.id})
-        resp = self.app.post(uri, headers=self.default_headers)
+        with mock.patch(
+                'cluster_upgrade.validators.CloneReleaseValidator.validate',
+                side_effect=lambda x: x) as mock_validate:
+            resp = self.app.post(uri, headers=self.default_headers)
+            self.assertTrue(mock_validate.called)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(
             '{0} Upgrade ({1})'.format(release.name, new_cluster.release.id),
