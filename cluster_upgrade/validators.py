@@ -168,3 +168,23 @@ class CopyVIPsValidator(base.BasicValidator):
             raise errors.InvalidData("Given cluster is not seed cluster")
 
         return data
+
+
+class CloneReleaseValidator(base.BasicValidator):
+
+    @classmethod
+    def validate(cls, data):
+        created_name = data['name']
+        exists_qs = objects.ReleaseCollection.filter_by(
+            None, name=created_name)
+        try:
+            release = exists_qs[0]
+        except IndexError:
+            return data
+        else:
+            raise errors.AlreadyExists(
+                "Upgrade release already exists "
+                "with name `{name}` and id {id}".format(
+                    name=release.name,
+                    id=release.id),
+                log_message=True)
