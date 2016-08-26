@@ -247,3 +247,29 @@ class TestCopyVipsHandler(base.BaseIntegrationTest):
 
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(copy_vips_mc.called)
+
+
+class TestCreateUpgradeReleaseHandler(base.BaseIntegrationTest):
+
+    def test_clone_release(self):
+        new_cluster = self.env.create_cluster(api=False)
+        release = self.env.create_release(
+            operating_system=consts.RELEASE_OS.ubuntu, version="new_version")
+        with mock.patch(
+                'cluser_upgrade.validators.CloneReleaseValidator.validate'
+                ) as mock_validate:
+            resp = self.app.post(
+                reverse(
+                    'CopyVIPsHandler',
+                    kwargs={
+                        'cluster_id': new_cluster.id,
+                        'release_id': release.id,
+                    }
+                ),
+                headers=self.default_headers,
+            )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(
+            '{0} Upgrade ({1})'.format(release.name, new_cluster.release.id),
+            resp.data['name'])
+        self.assertTrue(mock_validate.called)

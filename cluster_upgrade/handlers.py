@@ -147,6 +147,9 @@ class CopyVIPsHandler(base.BaseHandler):
 
 
 class CreateUpgradeReleaseHandler(base.BaseHandler):
+    single = objects.Release
+    validator = validators.CloneReleaseValidator
+
     @staticmethod
     def merge_network_roles(base_nets, orig_nets):
         """Create network metadata based on two releases.
@@ -185,5 +188,6 @@ class CreateUpgradeReleaseHandler(base.BaseHandler):
             base_release.name, orig_release.id)
         data['deployment_tasks'] = deployment_tasks
         del data['id']
+        data = self.checked_data(data=data)
         new_release = objects.Release.create(data)
         return objects.Release.to_dict(new_release)
