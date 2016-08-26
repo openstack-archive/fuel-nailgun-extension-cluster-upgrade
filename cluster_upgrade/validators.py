@@ -17,6 +17,7 @@
 from nailgun.api.v1.validators import assignment
 from nailgun.api.v1.validators import base
 from nailgun import consts
+from nailgun import db as nailgun_db
 from nailgun import errors
 from nailgun import objects
 
@@ -167,4 +168,17 @@ class CopyVIPsValidator(base.BasicValidator):
         if cluster.id != relation.seed_cluster_id:
             raise errors.InvalidData("Given cluster is not seed cluster")
 
+        return data
+
+
+class CloneRleaseValidator(base.BasicValidator):
+
+    @classmethod
+    def validate(cls, data):
+        created_name = data['name']
+        res = nailgun_db.db().query(objects.Release).get(name=created_name)
+        if not res:
+            raise errors.AlreadyExists(
+                "Upgrade release already exists "
+                "with name {name} and {id}".format(data))
         return data
