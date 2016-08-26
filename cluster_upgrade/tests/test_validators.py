@@ -236,3 +236,23 @@ class TestCopyVIPsValidator(base.BaseTestCase):
             cm.exception.message,
             "Given cluster is not seed cluster"
         )
+
+
+class TestCloneReleaseValidator(base.BaseIntegrationTest):
+    validator = validators.CloneReleaseValidator
+
+    def test_not_exists_release(self):
+        data = {"name": "random_name"}
+        assert data == self.validator.validate(data=data)
+
+    def test_exists_release(self):
+        release = self.env.create_release(
+            operating_system=consts.RELEASE_OS.ubuntu, version="exist_version")
+        with self.assertRaises(errors.AlreadyExists) as error:
+            self.validator.validate(data={'name': release.name})
+        self.assertEqual(
+            error.exception.message,
+            "Upgrade release already exists "
+            "with name `{name}` and id {id}".format(
+                name=release.name, id=release.id
+            ))
