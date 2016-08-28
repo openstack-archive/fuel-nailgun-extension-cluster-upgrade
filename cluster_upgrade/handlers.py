@@ -113,6 +113,7 @@ class CopyVIPsHandler(base.BaseHandler):
 
     @base.handle_errors
     @base.validate
+    @base.serialize
     def POST(self, cluster_id):
         """Copy VIPs from original cluster to new one
 
@@ -120,6 +121,7 @@ class CopyVIPsHandler(base.BaseHandler):
         clusters that is created on cluster clone operation
 
         :param cluster_id: id of cluster that VIPs must be copied to
+        :returns: Collection of JSON-serialised VIPs.
 
         :http: * 200 (OK)
                * 400 (validation failed)
@@ -144,6 +146,9 @@ class CopyVIPsHandler(base.BaseHandler):
 
         upgrade.UpgradeHelper.copy_vips(orig_cluster_adapter,
                                         seed_cluster_adapter)
+        cluster_vips = objects.IPAddrCollection.get_vips_by_cluster_id(
+            cluster.id)
+        return objects.IPAddrCollection.to_list(cluster_vips)
 
 
 class CreateUpgradeReleaseHandler(base.BaseHandler):
