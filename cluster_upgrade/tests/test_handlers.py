@@ -23,6 +23,7 @@ from nailgun.test import base
 from nailgun.utils import reverse
 
 from . import base as tests_base
+from ..objects import adapters
 
 
 class TestClusterUpgradeCloneHandler(tests_base.BaseCloneClusterTest):
@@ -224,29 +225,31 @@ class TestNodeReassignHandler(base.BaseIntegrationTest):
         self.assertEqual(400, resp.status_code)
 
 
-class TestCopyVipsHandler(base.BaseIntegrationTest):
+class TestCopyVipsHandler(tests_base.BaseCloneClusterTest):
+    def test_copy_vips(self):
+        node_db = self.env.create_node(cluster_id=self.src_cluster.id,
+                                       roles=["controller"])
+        node = adapters.NailgunNodeAdapter(node_db)
 
-    def test_copy_vips_called(self):
-        from ..objects import relations
+        src_net_manager = self.src_cluster.get_network_manager()
+        orig_vips = src_net_manager.assign_vips_for_net_groups()
 
-        orig_cluster = self.env.create_cluster(api=False)
-        new_cluster = self.env.create_cluster(api=False)
+        new_cluster = self.helper.clone_cluster(self.src_cluster, self.data)
+        self.helper.assign_node_to_cluster(node, new_cluster, node.roles, [])
 
-        relations.UpgradeRelationObject.create_relation(
-            orig_cluster.id, new_cluster.id)
+        resp = self.app.post(
+            reverse(
+                'CopyVIPsHandler',
+                kwargs={'cluster_id': new_cluster.id}
+            ),
+            headers=self.default_headers,
+        )
 
-        with mock.patch('cluster_upgrade.handlers'
-                        '.upgrade.UpgradeHelper.copy_vips') as copy_vips_mc:
-            resp = self.app.post(
-                reverse(
-                    'CopyVIPsHandler',
-                    kwargs={'cluster_id': new_cluster.id}
-                ),
-                headers=self.default_headers,
-            )
+        orig_vips_addrs = set(orig_vips.values())
+        new_vips_addrs = {vip["ip_addr"] for vip in resp.json_body}
 
         self.assertEqual(resp.status_code, 200)
-        self.assertTrue(copy_vips_mc.called)
+        self.assertEqual(orig_vips_addrs, new_vips_addrs)
 
 
 class TestCreateUpgradeReleaseHandler(base.BaseIntegrationTest):
