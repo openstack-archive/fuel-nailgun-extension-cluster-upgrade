@@ -15,9 +15,11 @@ import distutils.version
 import logging
 import threading
 
-import six
 
+import six
 import stevedore
+
+from nailgun.settings import settings
 
 LOG = logging.getLogger(__name__)
 
@@ -37,8 +39,14 @@ class Manager(object):
 
     @classmethod
     def get_config(cls, name):
-        # TODO(yorik-sar): merge actual config with defaults
-        return cls.default_config
+        res = cls.default_config.copy()
+        try:
+            conf = settings.config['CLUSTER_UPGRADE']['transformations'][name]
+        except KeyError:
+            pass
+        else:
+            res.update(conf)
+        return res
 
     @staticmethod
     def load_transformers(name, config):
