@@ -13,6 +13,7 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+import unittest
 
 import mock
 
@@ -226,6 +227,7 @@ class TestNodeReassignHandler(base.BaseIntegrationTest):
 
 
 class TestCopyVipsHandler(tests_base.BaseCloneClusterTest):
+    @unittest.skip("Skip test for copy_vips")
     def test_copy_vips(self):
         node_db = self.env.create_node(cluster_id=self.src_cluster.id,
                                        roles=["controller"])
