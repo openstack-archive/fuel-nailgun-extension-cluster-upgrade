@@ -14,6 +14,7 @@
 
 import collections
 
+from cluster_upgrade.objects.adapters import NailgunNetworkGroupAdapter
 from cluster_upgrade import transformations
 
 
@@ -42,15 +43,15 @@ def transform_vips(data):
         },
     }
     renamed_vips = collections.defaultdict(dict)
-    for ng_name, vips_obj in data.items():
-
+    for ng_id, vips_obj in data.items():
+        ng_name = NailgunNetworkGroupAdapter.get_by_uid(ng_id).name
         ng_vip_rules = rename_vip_rules[ng_name]
         for vip_name, vip_addr in vips_obj.items():
             if vip_name not in ng_vip_rules:
                 continue
 
             new_vip_name = ng_vip_rules[vip_name]
-            renamed_vips[ng_name][new_vip_name] = vip_addr
+            renamed_vips[ng_id][new_vip_name] = vip_addr
 
     return renamed_vips
 
