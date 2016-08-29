@@ -10,7 +10,6 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 from distutils import version
-import unittest
 
 import mock
 from nailgun.test import base as nailgun_test_base
@@ -225,33 +224,32 @@ class TestClusterTransformers(nailgun_test_base.BaseUnitTest):
 class TestVipTransformers(nailgun_test_base.BaseUnitTest):
     def setUp(self):
         ip = '0.0.0.0'
-
         self.data = {
-            'management': {
+            1: {
                 'haproxy': ip,
                 'vrouter': ip,
                 'test': ip,
             },
-            'public': {
+            2: {
                 'haproxy': ip,
                 'vrouter': ip,
                 'test': ip,
             }
         }
+        self.mapping = {1: 'management', 2: 'public'}
 
-    @unittest.skip("Skip test regarding vips")
     def test_vip_transform(self):
         ip = '0.0.0.0'
 
-        data = vip.transform_vips(self.data)
+        data = vip.transform_vips((self.data, self.mapping))
         self.assertEqual(
-            data, {
-                'management': {
+            data, ({
+                1: {
                     'management': ip,
                     'vrouter': ip,
                 },
-                'public': {
+                2: {
                     'public': ip,
                     'vrouter_pub': ip,
-                }}
+                }}, {1: 'management', 2: 'public'})
         )
