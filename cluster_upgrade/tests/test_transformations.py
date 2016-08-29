@@ -9,8 +9,8 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations
 # under the License.
-
 from distutils import version
+import unittest
 
 import mock
 from nailgun.test import base as nailgun_test_base
@@ -239,6 +239,7 @@ class TestVipTransformers(nailgun_test_base.BaseUnitTest):
             }
         }
 
+    @unittest.skip("Skip test regarding vips")
     def test_vip_transform(self):
         ip = '0.0.0.0'
 
