@@ -15,7 +15,6 @@
 #    under the License.
 
 import copy
-import unittest
 
 import six
 
@@ -145,7 +144,6 @@ class TestUpgradeHelperCloneCluster(base_tests.BaseCloneClusterTest):
         self.assertEqual(public_net['ip_ranges'],
                          self.public_net_data['ip_ranges'])
 
-    @unittest.skip("Skip test regarding vips")
     def test_copy_vips(self):
         # save network information before node reassignment to seed cluster
         # as after that no VIP will be allocated/serialized due to
