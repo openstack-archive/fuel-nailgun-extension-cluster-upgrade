@@ -18,6 +18,7 @@ import six
 
 from .. import transformations
 from ..transformations import cluster
+from ..transformations import vip
 
 
 class TestTransformations(nailgun_test_base.BaseUnitTest):
@@ -219,3 +220,38 @@ class TestClusterTransformers(nailgun_test_base.BaseUnitTest):
             cluster.transform_ntp_list,
             cluster.drop_generated_provision,
         ])])
+
+
+class TestVipTransformers(nailgun_test_base.BaseUnitTest):
+    def setUp(self):
+        ip = '0.0.0.0'
+
+        self.data = {
+            'management': {
+                'haproxy': ip,
+                'vrouter': ip,
+                'test': ip,
+            },
+            'public': {
+                'haproxy': ip,
+                'vrouter': ip,
+                'test': ip,
+            }
+        }
+
+    def test_vip_transform(self):
+        ip = '0.0.0.0'
+
+        data = vip.transform_vips(self.data)
+        self.assertEqual(
+            data, {
+                'management': {
+                    'management': ip,
+                    'vrouter': ip,
+                },
+                'public': {
+                    'public': ip,
+                    'vrouter_pub': ip,
+                }}
+        )
+
