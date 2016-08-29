@@ -21,13 +21,36 @@ from ..transformations import cluster
 
 
 class TestTransformations(nailgun_test_base.BaseUnitTest):
-    def test_get_config(self):
-        config = object()
-
+    def _test_get_config(self, def_config, settings, expected_result):
         class Manager(transformations.Manager):
-            default_config = config
+            default_config = def_config
 
-        self.assertIs(config, Manager.get_config('testname'))
+        with mock.patch("nailgun.settings.settings.config", new=settings):
+            result = Manager.get_config('testname')
+
+        self.assertEqual(expected_result, result)
+
+    @staticmethod
+    def _trans_settings(config):
+        return {'CLUSTER_UPGRADE': {'transformations': {'testname': config}}}
+
+    def test_get_config_default(self):
+        config = {'9.0': []}
+        self._test_get_config(config, {}, config)
+
+    def test_get_config_no_overwrite(self):
+        self._test_get_config(
+            {'9.0': ['a']},
+            self._trans_settings({'8.0': ['b']}),
+            {'8.0': ['b'], '9.0': ['a']},
+        )
+
+    def test_get_config_overwrite(self):
+        self._test_get_config(
+            {'9.0': ['a']},
+            self._trans_settings({'8.0': ['b'], '9.0': ['c']}),
+            {'8.0': ['b'], '9.0': ['c']},
+        )
 
     def setup_extension_manager(self, extensions):
         p = mock.patch("stevedore.ExtensionManager", spec=['__call__'])
@@ -153,8 +176,9 @@ class TestTransformations(nailgun_test_base.BaseUnitTest):
             ),
         ])
 
+    @mock.patch.object(transformations.Manager, 'get_config')
     @mock.patch.object(transformations.Manager, 'load_transformers')
-    def test_apply(self, mock_load):
+    def test_apply(self, mock_load, mock_config):
         mock_trans = mock.Mock()
         mock_load.return_value = [
             (version.StrictVersion('7.0'), [mock_trans.a, mock_trans.b]),
