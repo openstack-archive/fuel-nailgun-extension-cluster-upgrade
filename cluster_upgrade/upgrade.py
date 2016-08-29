@@ -15,6 +15,8 @@
 #    under the License.
 
 import copy
+
+import collections
 import six
 
 from nailgun import consts
@@ -47,13 +49,22 @@ def merge_attributes(a, b):
     return attrs
 
 
+def get_net_key(net):
+    group_name = None
+    if net["group_id"]:
+        group_name = objects.NodeGroup.get_by_uid(net["group_id"]).name
+    return (net["name"], group_name)
+
+
 def merge_nets(a, b):
     new_settings = copy.deepcopy(b)
-    source_networks = dict((n["name"], n) for n in a["networks"])
+    source_networks = dict((get_net_key(net), net) for net in a["networks"])
+
     for net in new_settings["networks"]:
-        if net["name"] not in source_networks:
+        net_key = get_net_key(net)
+        if net_key not in source_networks:
             continue
-        source_net = source_networks[net["name"]]
+        source_net = source_networks[net_key]
         for key, value in six.iteritems(net):
             if (key not in ("cluster_id", "id", "meta", "group_id") and
                     key in source_net):
@@ -84,6 +95,7 @@ class UpgradeHelper(object):
 
         new_cluster = cls.create_cluster_clone(orig_cluster, data)
         cls.copy_attributes(orig_cluster, new_cluster)
+        cls.copy_node_groups(orig_cluster, new_cluster)
         cls.copy_network_config(orig_cluster, new_cluster)
         relations.UpgradeRelationObject.create_relation(orig_cluster.id,
                                                         new_cluster.id)
@@ -125,6 +137,18 @@ class UpgradeHelper(object):
         attrs['editable']['provision']['method']['value'] = 'image'
 
     @classmethod
+    def copy_node_groups(cls, orig_cluster, new_cluster):
+        for ng in orig_cluster.node_groups:
+            if getattr(ng, 'is_default', False) or ng.name == 'default':
+                continue
+
+            data = {
+                'name': ng.name,
+                'cluster_id': new_cluster.id
+            }
+            objects.NodeGroup.create(data)
+
+    @classmethod
     def copy_network_config(cls, orig_cluster, new_cluster):
         nets_serializer = cls.network_serializers[orig_cluster.net_provider]
         nets = merge_nets(
@@ -140,18 +164,36 @@ class UpgradeHelper(object):
         orig_net_manager = orig_cluster.get_network_manager()
         new_net_manager = new_cluster.get_network_manager()
 
-        vips = {}
-        assigned_vips = orig_net_manager.get_assigned_vips()
-        for ng_name in (consts.NETWORKS.public, consts.NETWORKS.management):
-            vips[ng_name] = assigned_vips[ng_name]
+        vips = orig_net_manager.get_assigned_vips(
+            network_names=(consts.NETWORKS.public, consts.NETWORKS.management))
 
-        vips = cls.vip_transformations.apply(
+        netgroups_id_mapping = cls.get_netgroups_id_mapping(orig_cluster,
+                                                            new_cluster)
+        new_vips = cls.reassociate_vips(vips, netgroups_id_mapping)
+        id_name_vips_mapping = cls.get_id_name_vips_mapping(new_vips)
+        new_vips, id_name_vips_mapping = cls.vip_transformations.apply(
             orig_cluster.release.environment_version,
             new_cluster.release.environment_version,
-            vips
+            (new_vips, id_name_vips_mapping),
         )
-        new_net_manager.assign_given_vips_for_net_groups(vips)
+        new_net_manager.assign_given_vips_for_net_groups(new_vips)
         new_net_manager.assign_vips_for_net_groups()
+
+    @classmethod
+    def reassociate_vips(cls, vips, netgroups_id_mapping):
+        new_vips = collections.defaultdict(dict)
+        for orig_net_id, net_vips in vips.items():
+            new_net_id = netgroups_id_mapping[orig_net_id]
+            new_vips[new_net_id] = net_vips
+        return new_vips
+
+    @classmethod
+    def get_id_name_vips_mapping(self, vips):
+        mapping = {}
+        for vip_id in vips:
+            mapping[vip_id] = \
+                adapters.NailgunNetworkGroupAdapter.get_by_uid(vip_id).name
+        return mapping
 
     @classmethod
     def get_node_roles(cls, reprovision, current_roles, given_roles):
@@ -210,8 +252,10 @@ class UpgradeHelper(object):
         orig_ng = orig_cluster.get_network_groups()
         seed_ng = seed_cluster.get_network_groups()
 
-        seed_ng_dict = dict((ng.name, ng.id) for ng in seed_ng)
-        mapping = dict((ng.id, seed_ng_dict[ng.name]) for ng in orig_ng)
+        seed_ng_dict = dict(((ng.name, ng.nodegroup.name), ng.id)
+                            for ng in seed_ng)
+        mapping = dict((ng.id, seed_ng_dict[(ng.name, ng.nodegroup.name)])
+                       for ng in orig_ng)
         mapping[orig_cluster.get_admin_network_group().id] = \
             seed_cluster.get_admin_network_group().id
         return mapping
