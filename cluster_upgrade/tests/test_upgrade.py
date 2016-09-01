@@ -230,6 +230,72 @@ class TestUpgradeHelperCloneCluster(base_tests.BaseCloneClusterTest):
         self.assertEqual('image',
                          attrs['editable']['provision']['method']['value'])
 
+    def check_different_attributes(self, orig_cluster, new_cluster):
+        release = new_cluster.release.id
+        nodegroups_id_maping = self.helper.get_nodegroups_id_mapping(
+            orig_cluster, new_cluster
+        )
+        orig_ngs = self.serialize_nets(orig_cluster.cluster)['networks']
+        seed_ngs = self.serialize_nets(new_cluster.cluster)['networks']
+        for seed_ng in seed_ngs:
+            for orig_ng in orig_ngs:
+                if orig_ng['name'] == seed_ng['name'] \
+                        and orig_ng['name'] != "fuelweb_admin":
+
+                    self.assertEqual(seed_ng['group_id'],
+                                     nodegroups_id_maping[orig_ng['group_id']])
+
+                    if seed_ng.get('release'):
+                        self.assertEqual(seed_ng['release'], release)
+
+    def skip_different_attributes(self, orig_cluster, new_cluster):
+        orig_ngs = self.serialize_nets(orig_cluster.cluster)['networks']
+        seed_ngs = self.serialize_nets(new_cluster.cluster)['networks']
+        keys = ['release', 'id', 'group_id']
+        orig_ngs_names = {ng['name']: ng for ng in orig_ngs}
+        for seed_ng in seed_ngs:
+            if seed_ng['name'] == 'fuelweb_admin':
+                continue
+            orig_ng = orig_ngs_names.get(seed_ng['name'])
+            if not orig_ng:
+                continue
+            for key in keys:
+                orig_ng.pop(key, None)
+                seed_ng.pop(key, None)
+        return orig_ngs, seed_ngs
+
+    def test_sync_network_groups(self):
+        new_cluster = self.helper.create_cluster_clone(self.src_cluster,
+                                                       self.data)
+        self.helper.sync_network_groups(self.src_cluster, new_cluster)
+        self.check_different_attributes(self.src_cluster, new_cluster)
+        orig_ngs, seed_ngs = self.skip_different_attributes(self.src_cluster,
+                                                            new_cluster)
+        self.assertEqual(orig_ngs, seed_ngs)
+
+    def test_remove_network_groups(self):
+        new_cluster = self.helper.create_cluster_clone(self.src_cluster,
+                                                       self.data)
+        self.helper.remove_network_groups(new_cluster)
+        seed_ngs = self.serialize_nets(new_cluster.cluster)['networks']
+        self.assertEqual(len(seed_ngs), 1)
+        self.assertEqual(seed_ngs[0]['name'], 'fuelweb_admin')
+
+    def test_copy_network_groups(self):
+        new_cluster = self.helper.create_cluster_clone(self.src_cluster,
+                                                       self.data)
+        nodegroups_id_maping = self.helper.get_nodegroups_id_mapping(
+            self.src_cluster, new_cluster
+        )
+        release = new_cluster.release.id
+        self.helper.remove_network_groups(new_cluster)
+        self.helper.copy_network_groups(self.src_cluster, nodegroups_id_maping,
+                                        release)
+        self.check_different_attributes(self.src_cluster, new_cluster)
+        orig_ngs, seed_ngs = self.skip_different_attributes(self.src_cluster,
+                                                            new_cluster)
+        self.assertEqual(orig_ngs, seed_ngs)
+
     def test_change_env_settings_no_editable_provision(self):
         new_cluster = self.helper.create_cluster_clone(self.src_cluster,
                                                        self.data)
