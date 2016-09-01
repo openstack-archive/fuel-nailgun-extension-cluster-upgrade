@@ -19,9 +19,10 @@ import mock
 from oslo_serialization import jsonutils
 
 from nailgun import consts
-from nailgun.errors import errors
 from nailgun.settings import settings
 from nailgun.test import base
+
+from cluster_upgrade import errors
 
 from .. import validators
 from . import base as tests_base
