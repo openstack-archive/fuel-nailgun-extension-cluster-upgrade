@@ -36,6 +36,10 @@ class NailgunClusterAdapter(object):
         return self.cluster.name
 
     @property
+    def node_groups(self):
+        return self.cluster.node_groups
+
+    @property
     def net_provider(self):
         return self.cluster.net_provider
 
@@ -118,6 +122,10 @@ class NailgunReleaseAdapter(object):
         return self.release.environment_version
 
     @property
+    def id(self):
+        return self.release.id
+
+    @property
     def roles_metadata(self):
         return self.release.roles_metadata
 
@@ -131,6 +139,10 @@ class NailgunNetworkManager(object):
     def __init__(self, cluster, net_manager):
         self.cluster = cluster
         self.net_manager = net_manager
+
+    def create(self, network_configuration, group_id=None):
+        self.net_manager.create_network_group(self.cluster,
+                                              network_configuration, group_id)
 
     def update(self, network_configuration):
         self.net_manager.update(self.cluster, network_configuration)
