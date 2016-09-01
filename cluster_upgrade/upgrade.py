@@ -18,6 +18,7 @@ import copy
 import six
 
 from nailgun import consts
+from nailgun.db import db
 from nailgun.extensions.network_manager.objects.serializers import \
     network_configuration
 from nailgun import objects
@@ -88,6 +89,7 @@ class UpgradeHelper(object):
         relations.UpgradeRelationObject.create_relation(orig_cluster.id,
                                                         new_cluster.id)
         cls.change_env_settings(orig_cluster, new_cluster)
+        cls.sync_network_groups(orig_cluster, new_cluster)
         return new_cluster
 
     @classmethod
@@ -123,6 +125,52 @@ class UpgradeHelper(object):
     def change_env_settings(cls, orig_cluster, new_cluster):
         attrs = new_cluster.attributes
         attrs['editable']['provision']['method']['value'] = 'image'
+
+    @classmethod
+    def sync_network_groups(cls, orig_cluster, new_cluster):
+        cls.remove_network_groups(new_cluster)
+        nodegroups_id_maping = cls.get_nodegroups_id_mapping(orig_cluster,
+                                                             new_cluster)
+        release = new_cluster.release.id
+        cls.copy_network_groups(orig_cluster, nodegroups_id_maping, release)
+
+    @classmethod
+    def remove_network_groups(cls, cluster):
+        seed_ng = cluster.get_network_groups()
+        for ng in seed_ng:
+            if ng.name == 'fuelweb_admin':
+                continue
+            objects.NetworkGroup.delete(ng.network_group)
+
+    @classmethod
+    def copy_network_groups(cls, orig_cluster, nodegroups_id_maping, release):
+        nets_serializer = cls.network_serializers[orig_cluster.net_provider]
+        orig_net = nets_serializer.serialize_for_cluster(orig_cluster.cluster)
+        for ng in orig_net['networks']:
+            if ng['name'] == 'fuelweb_admin':
+                continue
+            meta = ng['meta']
+            metadata = {
+                'notation': 'cidr',
+                'render_type': None,
+                'map_priority': 2,
+                'configurable': True,
+                'use_gateway': False,
+                'name': ng['name'],
+                'vlan_start': ng['vlan_start']
+            }
+            metadata.update(meta)
+            data = {
+                'name': ng['name'],
+                'release': release,
+                'vlan_start': ng['vlan_start'],
+                'cidr': ng['cidr'],
+                'gateway': ng['gateway'],
+                'group_id': nodegroups_id_maping[ng['group_id']],
+                'meta': metadata
+            }
+            objects.NetworkGroup.create(data)
+        db().commit()
 
     @classmethod
     def copy_network_config(cls, orig_cluster, new_cluster):
@@ -214,4 +262,13 @@ class UpgradeHelper(object):
         mapping = dict((ng.id, seed_ng_dict[ng.name]) for ng in orig_ng)
         mapping[orig_cluster.get_admin_network_group().id] = \
             seed_cluster.get_admin_network_group().id
+        return mapping
+
+    @classmethod
+    def get_nodegroups_id_mapping(cls, orig_cluster, seed_cluster):
+        orig_ng = orig_cluster.node_groups
+        seed_ng = seed_cluster.node_groups
+
+        seed_ng_dict = dict((ng.name, ng.id) for ng in seed_ng)
+        mapping = dict((ng.id, seed_ng_dict[ng.name]) for ng in orig_ng)
         return mapping
