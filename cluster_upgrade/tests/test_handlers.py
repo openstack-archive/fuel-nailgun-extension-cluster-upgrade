@@ -87,14 +87,14 @@ class TestNodeReassignHandler(base.BaseIntegrationTest):
         resp = self.app.post(
             reverse('NodeReassignHandler',
                     kwargs={'cluster_id': seed_cluster['id']}),
-            jsonutils.dumps({'node_id': node_id}),
+            jsonutils.dumps({'nodes_ids': [node_id]}),
             headers=self.default_headers)
         self.assertEqual(202, resp.status_code)
 
         args, kwargs = mcast.call_args
         nodes = args[1]['args']['provisioning_info']['nodes']
         provisioned_uids = [int(n['uid']) for n in nodes]
-        self.assertEqual([node_id, ], provisioned_uids)
+        self.assertEqual([node_id], provisioned_uids)
 
     @mock.patch('nailgun.task.task.rpc.cast')
     def test_node_reassign_handler_with_roles(self, mcast):
@@ -108,7 +108,7 @@ class TestNodeReassignHandler(base.BaseIntegrationTest):
         # NOTE(akscram): reprovision=True means that the node will be
         #                re-provisioned during the reassigning. This is
         #                a default behavior.
-        data = {'node_id': node.id,
+        data = {'nodes_ids': [node.id],
                 'reprovision': True,
                 'roles': ['compute']}
         resp = self.app.post(
@@ -130,7 +130,7 @@ class TestNodeReassignHandler(base.BaseIntegrationTest):
         node = cluster.nodes[0]
         seed_cluster = self.env.create_cluster(api=False)
 
-        data = {'node_id': node.id,
+        data = {'nodes_ids': [node.id],
                 'reprovision': False,
                 'roles': ['compute']}
         resp = self.app.post(
@@ -148,7 +148,7 @@ class TestNodeReassignHandler(base.BaseIntegrationTest):
         resp = self.app.post(
             reverse('NodeReassignHandler',
                     kwargs={'cluster_id': cluster['id']}),
-            jsonutils.dumps({'node_id': 42}),
+            jsonutils.dumps({'nodes_ids': [42]}),
             headers=self.default_headers,
             expect_errors=True)
         self.assertEqual(404, resp.status_code)
@@ -163,7 +163,7 @@ class TestNodeReassignHandler(base.BaseIntegrationTest):
         resp = self.app.post(
             reverse('NodeReassignHandler',
                     kwargs={'cluster_id': cluster['id']}),
-            jsonutils.dumps({'node_id': cluster.nodes[0]['id']}),
+            jsonutils.dumps({'nodes_ids': [cluster.nodes[0]['id']]}),
             headers=self.default_headers,
             expect_errors=True)
         self.assertEqual(400, resp.status_code)
@@ -179,7 +179,7 @@ class TestNodeReassignHandler(base.BaseIntegrationTest):
         resp = self.app.post(
             reverse('NodeReassignHandler',
                     kwargs={'cluster_id': cluster['id']}),
-            jsonutils.dumps({'node_id': cluster.nodes[0]['id']}),
+            jsonutils.dumps({'nodes_ids': [cluster.nodes[0]['id']]}),
             headers=self.default_headers,
             expect_errors=True)
         self.assertEqual(400, resp.status_code)
@@ -196,7 +196,7 @@ class TestNodeReassignHandler(base.BaseIntegrationTest):
         resp = self.app.post(
             reverse('NodeReassignHandler',
                     kwargs={'cluster_id': cluster_id}),
-            jsonutils.dumps({'node_id': node_id}),
+            jsonutils.dumps({'nodes_ids': [node_id]}),
             headers=self.default_headers,
             expect_errors=True)
         self.assertEqual(400, resp.status_code)
