@@ -164,7 +164,7 @@ class TestNodeReassignNoReinstallValidator(tests_base.BaseCloneClusterTest):
                                          roles=["compute"], status="ready")
 
     def test_validate_defaults(self):
-        request = {"node_id": self.node.id}
+        request = {"nodes_ids": [self.node.id]}
         data = jsonutils.dumps(request)
         parsed = self.validator.validate(data, self.dst_cluster)
         self.assertEqual(parsed, request)
@@ -172,7 +172,7 @@ class TestNodeReassignNoReinstallValidator(tests_base.BaseCloneClusterTest):
 
     def test_validate_with_roles(self):
         request = {
-            "node_id": self.node.id,
+            "nodes_ids": [self.node.id],
             "reprovision": True,
             "roles": ['controller'],
         }
@@ -182,7 +182,7 @@ class TestNodeReassignNoReinstallValidator(tests_base.BaseCloneClusterTest):
 
     def test_validate_not_unique_roles(self):
         data = jsonutils.dumps({
-            "node_id": self.node.id,
+            "nodes_ids": [self.node.id],
             "roles": ['compute', 'compute'],
         })
         msg = "has non-unique elements"
@@ -191,7 +191,7 @@ class TestNodeReassignNoReinstallValidator(tests_base.BaseCloneClusterTest):
 
     def test_validate_no_reprovision_with_conflicts(self):
         data = jsonutils.dumps({
-            "node_id": self.node.id,
+            "nodes_ids": [self.node.id],
             "reprovision": False,
             "roles": ['controller', 'compute'],
         })
@@ -202,6 +202,36 @@ class TestNodeReassignNoReinstallValidator(tests_base.BaseCloneClusterTest):
             exc.exception.message,
             "Role 'controller' in conflict with role 'compute'."
         )
+
+    def test_validate_empty_nodes_ids(self):
+        data = jsonutils.dumps({
+            "nodes_ids": [],
+            "roles": ['controller'],
+        })
+        msg = "minItems.*nodes_ids"
+        with self.assertRaisesRegexp(errors.InvalidData, msg):
+            self.validator.validate(data, self.dst_cluster)
+
+    def test_validate_several_nodes_ids(self):
+        node = self.env.create_node(cluster_id=self.src_cluster.id,
+                                    roles=["compute"], status="ready")
+        request = {
+            "nodes_ids": [self.node.id, node.id],
+        }
+        data = jsonutils.dumps(request)
+        parsed = self.validator.validate(data, self.dst_cluster)
+        self.assertEqual(parsed, request)
+
+    def test_validate_mixed_roles(self):
+        node = self.env.create_node(cluster_id=self.src_cluster.id,
+                                    roles=["ceph-osd"], status="ready")
+        data = jsonutils.dumps({
+            "nodes_ids": [self.node.id, node.id],
+            "roles": ['controller'],
+        })
+        msg = "All nodes have to have the same set of assigned roles."
+        with self.assertRaisesRegexp(errors.InvalidData, msg):
+            self.validator.validate(data, self.dst_cluster)
 
 
 class TestCopyVIPsValidator(base.BaseTestCase):
