@@ -98,13 +98,18 @@ class NodeReassignValidator(assignment.NodeAssignmentValidator):
         "description": "Serialized parameters to assign node",
         "type": "object",
         "properties": {
-            "node_id": {"type": "number"},
+            "nodes_ids": {
+                "type": "array",
+                "items": {"type": "number"},
+                "uniqueItems": True,
+                "minItems": 1,
+            },
             "reprovision": {"type": "boolean", "default": True},
             "roles": {"type": "array",
                       "items": {"type": "string"},
                       "uniqueItems": True},
         },
-        "required": ["node_id"],
+        "required": ["nodes_ids"],
     }
 
     @classmethod
@@ -112,14 +117,19 @@ class NodeReassignValidator(assignment.NodeAssignmentValidator):
         parsed = super(NodeReassignValidator, cls).validate(data)
         cls.validate_schema(parsed, cls.schema)
 
-        node = cls.validate_node(parsed['node_id'])
-        cls.validate_node_cluster(node, cluster)
+        nodes = []
+        for node_id in parsed['nodes_ids']:
+            node = cls.validate_node(node_id)
+            cls.validate_node_cluster(node, cluster)
+            nodes.append(node)
 
         roles = parsed.get('roles', [])
         if roles:
+            cls.validate_nodes_roles(nodes)
             cls.validate_roles(cluster, roles)
         else:
-            cls.validate_roles(cluster, node.roles)
+            for node in nodes:
+                cls.validate_roles(cluster, node.roles)
         return parsed
 
     @classmethod
@@ -146,6 +156,16 @@ class NodeReassignValidator(assignment.NodeAssignmentValidator):
                                      " of node is {0}".format(node.error_type),
                                      log_message=True)
         return node
+
+    @classmethod
+    def validate_nodes_roles(cls, nodes):
+        roles = list(nodes[0].roles)
+        for node in nodes[1:]:
+            if node.roles == roles:
+                continue
+            raise errors.InvalidData(
+                "All nodes have to have the same set of assigned roles.",
+                log_message=True)
 
     @classmethod
     def validate_node_cluster(cls, node, cluster):
