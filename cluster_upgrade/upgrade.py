@@ -18,9 +18,8 @@ import copy
 import six
 
 from nailgun import consts
-from nailgun.extensions.network_manager.objects.serializers import \
-    network_configuration
 from nailgun import objects
+from nailgun.objects.serializers import network_configuration
 from nailgun import utils
 
 from . import transformations  # That's weird, but that's how hacking likes

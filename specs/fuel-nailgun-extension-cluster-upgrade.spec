@@ -1,5 +1,5 @@
 Name:           fuel-nailgun-extension-cluster-upgrade
-Version:        10.0~b1
+Version:        9.1
 Release:        1%{?dist}
 Summary:        Cluster upgrade extension for Fuel
 License:        Apache-2.0
@@ -34,5 +34,5 @@ export OSLO_PACKAGE_VERSION=%{version}
 %{python2_sitelib}/*.egg-info
 
 %changelog
-* Thu Aug 04 2016 Alexander Tsamutali <atsamutali@mirantis.com> - 10.0~b1-1
+* Thu Aug 04 2016 Alexander Tsamutali <atsamutali@mirantis.com> - 9.1-1
 - Initial package.

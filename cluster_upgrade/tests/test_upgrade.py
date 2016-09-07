@@ -18,8 +18,7 @@ import copy
 import six
 
 from nailgun import consts
-from nailgun.extensions.network_manager.objects.serializers import \
-    network_configuration
+from nailgun.objects.serializers import network_configuration
 from nailgun.test.base import fake_tasks
 
 from .. import upgrade
