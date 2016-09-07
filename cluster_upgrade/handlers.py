@@ -73,16 +73,16 @@ class NodeReassignHandler(base.BaseHandler):
     @base.handle_errors
     @base.validate
     def POST(self, cluster_id):
-        """Reassign node to the given cluster.
+        """Reassign nodes to the given cluster.
 
-        The given node will be assigned from the current cluster to the
-        given cluster, by default it involves the reprovisioning of this
-        node. If the 'reprovision' flag is set to False, then the node
+        The given nodes will be assigned from the current cluster to the
+        given cluster, by default it involves the reprovisioning of the
+        nodes. If the 'reprovision' flag is set to False, then the nodes
         will be just reassigned. If the 'roles' list is specified, then
         the given roles will be used as 'pending_roles' in case of
         the reprovisioning or otherwise as 'roles'.
 
-        :param cluster_id: ID of the cluster node should be assigned to.
+        :param cluster_id: ID of the cluster nodes should be assigned to.
         :returns: None
         :http: * 202 (OK)
                * 400 (Incorrect node state, problem with task execution,
@@ -93,18 +93,22 @@ class NodeReassignHandler(base.BaseHandler):
             self.get_object_or_404(self.single, cluster_id))
 
         data = self.checked_data(cluster=cluster)
-        node = adapters.NailgunNodeAdapter(
-            self.get_object_or_404(objects.Node, data['node_id']))
         reprovision = data.get('reprovision', True)
         given_roles = data.get('roles', [])
 
-        roles, pending_roles = upgrade.UpgradeHelper.get_node_roles(
-            reprovision, node.roles, given_roles)
-        upgrade.UpgradeHelper.assign_node_to_cluster(
-            node, cluster, roles, pending_roles)
+        nodes_to_provision = []
+        for node_id in data['nodes_ids']:
+            node = adapters.NailgunNodeAdapter(
+                self.get_object_or_404(objects.Node, node_id))
+            nodes_to_provision.append(node.node)
+
+            roles, pending_roles = upgrade.UpgradeHelper.get_node_roles(
+                reprovision, node.roles, given_roles)
+            upgrade.UpgradeHelper.assign_node_to_cluster(
+                node, cluster, roles, pending_roles)
 
         if reprovision:
-            self.handle_task(cluster_id, [node.node])
+            self.handle_task(cluster_id, nodes_to_provision)
 
 
 class CopyVIPsHandler(base.BaseHandler):
