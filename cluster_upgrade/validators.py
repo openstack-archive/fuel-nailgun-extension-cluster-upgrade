@@ -17,8 +17,9 @@
 from nailgun.api.v1.validators import assignment
 from nailgun.api.v1.validators import base
 from nailgun import consts
-from nailgun.errors import errors
 from nailgun import objects
+
+from cluster_upgrade import errors
 
 from .objects import adapters
 
