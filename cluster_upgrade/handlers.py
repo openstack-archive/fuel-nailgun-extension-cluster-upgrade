@@ -18,6 +18,7 @@ import copy
 import six
 
 from nailgun.api.v1.handlers import base
+from nailgun import errors
 from nailgun import objects
 from nailgun.task import manager
 
@@ -53,6 +54,13 @@ class ClusterUpgradeCloneHandler(base.BaseHandler):
         request_data = self.checked_data(cluster=orig_cluster)
         new_cluster = upgrade.UpgradeHelper.clone_cluster(orig_cluster,
                                                           request_data)
+        valid = upgrade.UpgradeHelper.validate_network_roles(
+            orig_cluster, new_cluster,
+        )
+        if not valid:
+            raise errors.InvalidData("Network changes during upgrade"
+                                     " is not supported.")
+
         return new_cluster.to_dict()
 
 

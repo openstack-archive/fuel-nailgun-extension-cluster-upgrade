@@ -319,3 +319,25 @@ class UpgradeHelper(object):
         seed_ng_dict = dict((ng.name, ng.id) for ng in seed_ng)
         mapping = dict((ng.id, seed_ng_dict[ng.name]) for ng in orig_ng)
         return mapping
+
+    @classmethod
+    def validate_network_roles(cls, orig_cluster, seed_cluster):
+        if not orig_cluster.network_template:
+            return cls._compare_releases_roles(orig_cluster, seed_cluster)
+        else:
+            # TODO network template case
+            return True
+
+    @classmethod
+    def _compare_releases_roles(cls, orig_cluster, seed_cluster):
+        orig_roles = orig_cluster.get_network_roles()
+        new_roles = seed_cluster.get_network_roles()
+
+        orig_mapping = cls._get_release_mapping(orig_roles)
+        new_mapping = cls._get_release_mapping(new_roles)
+
+        return orig_mapping.issubset(new_mapping)
+
+    @staticmethod
+    def _get_release_mapping(roles):
+        return {(role['id'], role['default_mapping']) for role in roles}

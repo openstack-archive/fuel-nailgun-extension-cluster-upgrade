@@ -98,6 +98,9 @@ class NailgunClusterAdapter(object):
     def get_admin_network_group(self):
         return objects.NetworkGroup.get_admin_network_group()
 
+    def get_network_roles(self):
+        return objects.Cluster.get_network_roles(self.cluster)
+
 
 class NailgunReleaseAdapter(object):
     def __init__(self, release):
