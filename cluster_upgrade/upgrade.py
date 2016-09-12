@@ -18,6 +18,7 @@ import copy
 import six
 
 from nailgun import consts
+from nailgun.db import db
 from nailgun.extensions.network_manager.objects.serializers import \
     network_configuration
 from nailgun import objects
@@ -215,3 +216,25 @@ class UpgradeHelper(object):
         mapping[orig_cluster.get_admin_network_group().id] = \
             seed_cluster.get_admin_network_group().id
         return mapping
+
+    @classmethod
+    def validate_network_roles(cls, orig_cluster, seed_cluster):
+        if not orig_cluster.network_template:
+            return cls._compare_releases_roles(orig_cluster, seed_cluster)
+        else:
+            # TODO network template case
+            return True
+
+    @classmethod
+    def _compare_releases_roles(cls, orig_cluster, seed_cluster):
+        orig_roles = orig_cluster.get_network_roles()
+        new_roles = seed_cluster.get_network_roles()
+
+        orig_mapping = cls._get_release_mapping(orig_roles)
+        new_mapping = cls._get_release_mapping(new_roles)
+
+        return orig_mapping.issubset(new_mapping)
+
+    @staticmethod
+    def _get_release_mapping(roles):
+        return {(role['id'], role['default_mapping']) for role in roles}
