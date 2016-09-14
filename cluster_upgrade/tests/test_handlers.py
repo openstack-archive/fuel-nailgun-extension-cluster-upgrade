@@ -97,21 +97,42 @@ class TestNodeReassignHandler(base.BaseIntegrationTest):
         provisioned_uids = [int(n['uid']) for n in nodes]
         self.assertEqual([node_id], provisioned_uids)
 
-    @mock.patch('nailgun.task.task.rpc.cast')
+    @mock.patch('nailgun.rpc.cast')
     def test_node_reassign_handler_with_roles(self, mcast):
         cluster = self.env.create(
             cluster_kwargs={'api': False},
             nodes_kwargs=[{'status': consts.NODE_STATUSES.ready,
-                           'roles': ['controller']}])
+                           'roles': ['role_a']}],
+            release_kwargs={
+                'version': 'liberty-8.0',
+                'roles_metadata': {
+                    'role_a': {
+                        'name': 'Role A',
+                        'description': 'Role A is ...',
+                    },
+                },
+            },
+        )
         node = cluster.nodes[0]
-        seed_cluster = self.env.create_cluster(api=False)
+        seed_cluster = self.env.create(
+            cluster_kwargs={'api': False},
+            release_kwargs=dict(
+                version='mitaka-9.0',
+                roles_metadata={
+                    'role_b': {
+                        'name': 'Role B',
+                        'description': 'Role B is ...',
+                    },
+                },
+            )
+        )
 
         # NOTE(akscram): reprovision=True means that the node will be
         #                re-provisioned during the reassigning. This is
         #                a default behavior.
         data = {'nodes_ids': [node.id],
                 'reprovision': True,
-                'roles': ['compute']}
+                'roles': ['role_b']}
         resp = self.app.post(
             reverse('NodeReassignHandler',
                     kwargs={'cluster_id': seed_cluster.id}),
@@ -119,7 +140,7 @@ class TestNodeReassignHandler(base.BaseIntegrationTest):
             headers=self.default_headers)
         self.assertEqual(202, resp.status_code)
         self.assertEqual(node.roles, [])
-        self.assertEqual(node.pending_roles, ['compute'])
+        self.assertEqual(node.pending_roles, ['role_b'])
         self.assertTrue(mcast.called)
 
     @mock.patch('nailgun.task.task.rpc.cast')
