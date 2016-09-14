@@ -16,6 +16,8 @@
 
 from nailgun.extensions.volume_manager import extension as volume_ext
 from nailgun import objects
+from nailgun.orchestrator.deployment_serializers import \
+    get_serializer_for_cluster
 
 
 class NailgunClusterAdapter(object):
@@ -101,6 +103,16 @@ class NailgunClusterAdapter(object):
     def get_network_roles(self):
         return objects.Cluster.get_network_roles(self.cluster)
 
+    def get_network_serializer(self):
+        serializer = get_serializer_for_cluster(self.cluster)
+        return serializer.get_net_provider_serializer(self.cluster)
+
+    def prepare_for_deployment(self, nodes=None):
+        objects.Cluster.prepare_for_deployment(
+            self.cluster,
+            [n.node for n in nodes] if nodes is not None else None
+        )
+
 
 class NailgunReleaseAdapter(object):
     def __init__(self, release):
@@ -157,6 +169,13 @@ class NailgunNetworkManager(object):
     def assign_vips_for_net_groups(self):
         return self.net_manager.assign_vips_for_net_groups(self.cluster)
 
+    def assign_vips_for_net_groups_for_api(self):
+        res = self.net_manager.assign_vips_for_net_groups_for_api(
+            self.cluster
+        )
+        res.pop('vips', None)
+        return res
+
     def assign_given_vips_for_net_groups(self, vips):
         self.net_manager.assign_given_vips_for_net_groups(self.cluster, vips)
 
@@ -170,6 +189,9 @@ class NailgunNetworkManager(object):
     def set_bond_assignment_netgroups_ids(self, node, mapping):
         return objects.Node.set_bond_assignment_netgroups_ids(
             node.node, mapping)
+
+    def get_node_networks(self, node):
+        return self.net_manager.get_node_networks(node.node)
 
 
 class NailgunNodeAdapter(object):

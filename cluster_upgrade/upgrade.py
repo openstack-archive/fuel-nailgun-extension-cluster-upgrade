@@ -22,6 +22,7 @@ import six
 from nailgun import consts
 
 from nailgun.db import db
+from nailgun import errors
 from nailgun import objects
 from nailgun.objects.serializers import network_configuration
 from nailgun import utils
@@ -273,8 +274,27 @@ class UpgradeHelper(object):
     @classmethod
     def assign_node_to_cluster(cls, node, seed_cluster, roles, pending_roles):
         orig_cluster = adapters.NailgunClusterAdapter.get_by_uid(
-            node.cluster_id)
+            node.cluster_id
+        )
 
+        orig_roles_mapping = cls._get_node_roles_mapping(node, orig_cluster)
+
+        cls._assign_node_to_cluster(
+            node, orig_cluster, seed_cluster, roles, pending_roles
+        )
+
+        new_roles_mapping = cls._get_node_roles_mapping(node, seed_cluster)
+
+        if not set(orig_roles_mapping.items()).issubset(
+                set(new_roles_mapping.items())):
+            raise errors.ValidationException(
+                "Network changes during upgrade is not supported."
+            )
+
+    @classmethod
+    def _assign_node_to_cluster(cls, node,
+                                orig_cluster, seed_cluster,
+                                roles, pending_roles):
         volumes = cls.volumes_transformations.apply(
             orig_cluster.release.environment_version,
             seed_cluster.release.environment_version,
@@ -297,6 +317,21 @@ class UpgradeHelper(object):
                 node, netgroups_id_mapping)
 
         node.add_pending_change(consts.CLUSTER_CHANGES.interfaces)
+
+    @staticmethod
+    def _get_node_roles_mapping(node, cluster):
+        cluster.prepare_for_deployment([node])
+
+        nm = cluster.get_network_manager()
+        serializer = cluster.get_network_serializer()
+
+        networks = nm.get_node_networks(node)
+        scheme = serializer.generate_network_scheme(node.node, networks)
+
+        db().flush()
+        db().refresh(node.node)
+
+        return scheme['roles']
 
     @classmethod
     def get_netgroups_id_mapping(self, orig_cluster, seed_cluster):
