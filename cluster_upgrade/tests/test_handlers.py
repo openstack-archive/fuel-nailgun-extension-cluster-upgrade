@@ -74,7 +74,7 @@ class TestClusterUpgradeCloneHandler(tests_base.BaseCloneClusterTest):
         self.assertEqual(resp.status_code, 409)
 
 
-class TestNodeReassignHandler(base.BaseIntegrationTest):
+class TestNodeReassignHandler(tests_base.BaseCloneClusterTest):
 
     @mock.patch('nailgun.task.task.rpc.cast')
     def test_node_reassign_handler(self, mcast):
@@ -96,21 +96,24 @@ class TestNodeReassignHandler(base.BaseIntegrationTest):
         provisioned_uids = [int(n['uid']) for n in nodes]
         self.assertEqual([node_id], provisioned_uids)
 
-    @mock.patch('nailgun.task.task.rpc.cast')
+    @mock.patch('nailgun.rpc.cast')
     def test_node_reassign_handler_with_roles(self, mcast):
         cluster = self.env.create(
-            cluster_kwargs={'api': False},
+            cluster_kwargs={'api': False, 'release_id': self.src_release.id},
             nodes_kwargs=[{'status': consts.NODE_STATUSES.ready,
-                           'roles': ['controller']}])
+                           'roles': ['role_a']}],
+        )
         node = cluster.nodes[0]
-        seed_cluster = self.env.create_cluster(api=False)
+        seed_cluster = self.env.create(
+            cluster_kwargs={'api': False, 'release_id': self.dst_release.id},
+        )
 
         # NOTE(akscram): reprovision=True means that the node will be
         #                re-provisioned during the reassigning. This is
         #                a default behavior.
         data = {'nodes_ids': [node.id],
                 'reprovision': True,
-                'roles': ['compute']}
+                'roles': ['role_b']}
         resp = self.app.post(
             reverse('NodeReassignHandler',
                     kwargs={'cluster_id': seed_cluster.id}),
@@ -118,21 +121,23 @@ class TestNodeReassignHandler(base.BaseIntegrationTest):
             headers=self.default_headers)
         self.assertEqual(202, resp.status_code)
         self.assertEqual(node.roles, [])
-        self.assertEqual(node.pending_roles, ['compute'])
+        self.assertEqual(node.pending_roles, ['role_b'])
         self.assertTrue(mcast.called)
 
     @mock.patch('nailgun.task.task.rpc.cast')
     def test_node_reassign_handler_without_reprovisioning(self, mcast):
         cluster = self.env.create(
-            cluster_kwargs={'api': False},
+            cluster_kwargs={'api': False, 'release_id': self.src_release.id},
             nodes_kwargs=[{'status': consts.NODE_STATUSES.ready,
-                           'roles': ['controller']}])
+                           'roles': ['role_a']}])
         node = cluster.nodes[0]
-        seed_cluster = self.env.create_cluster(api=False)
+        seed_cluster = self.env.create(
+            cluster_kwargs={'api': False, 'release_id': self.dst_release.id},
+        )
 
         data = {'nodes_ids': [node.id],
                 'reprovision': False,
-                'roles': ['compute']}
+                'roles': ['role_b']}
         resp = self.app.post(
             reverse('NodeReassignHandler',
                     kwargs={'cluster_id': seed_cluster.id}),
@@ -140,7 +145,7 @@ class TestNodeReassignHandler(base.BaseIntegrationTest):
             headers=self.default_headers)
         self.assertEqual(200, resp.status_code)
         self.assertFalse(mcast.called)
-        self.assertEqual(node.roles, ['compute'])
+        self.assertEqual(node.roles, ['role_b'])
 
     def test_node_reassign_handler_no_node(self):
         cluster = self.env.create_cluster()
@@ -233,7 +238,8 @@ class TestCopyVipsHandler(tests_base.BaseCloneClusterTest):
         node = adapters.NailgunNodeAdapter(node_db)
 
         src_net_manager = self.src_cluster.get_network_manager()
-        orig_vips = src_net_manager.assign_vips_for_net_groups()
+
+        orig_vips = src_net_manager.assign_vips_for_net_groups_for_api()
 
         new_cluster = self.helper.clone_cluster(self.src_cluster, self.data)
         self.helper.assign_node_to_cluster(node, new_cluster, node.roles, [])
