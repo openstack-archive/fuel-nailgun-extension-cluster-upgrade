@@ -15,6 +15,7 @@
 #    under the License.
 
 from nailgun import consts
+from nailgun import objects
 from nailgun.test import base as nailgun_test_base
 
 from .. import upgrade
@@ -32,10 +33,26 @@ class BaseCloneClusterTest(nailgun_test_base.BaseIntegrationTest):
             state=consts.RELEASE_STATES.manageonly
         )
 
+        objects.Release.update_role(self.src_release, {
+            'name': 'role_a',
+            'meta': {
+                'name': 'role A',
+                'description': 'role A',
+            },
+        })
+
         self.dst_release = self.env.create_release(
             operating_system=consts.RELEASE_OS.ubuntu,
-            version="liberty-9.0",
+            version="mitaka-9.0",
         )
+
+        objects.Release.update_role(self.dst_release, {
+            'name': 'role_b',
+            'meta': {
+                'name': 'role B',
+                'description': 'role B',
+            },
+        })
 
         self.src_cluster_db = self.env.create(
             cluster_kwargs={
