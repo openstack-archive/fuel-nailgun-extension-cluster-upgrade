@@ -21,6 +21,7 @@ file.
 **Example**
 
 ::
+
    CLUSTER_UPGRADE:
      transformations:
        cluster:
@@ -32,18 +33,19 @@ file.
 In extension you should define a entrypoint is such way:
 
 ::
+
    nailgun.cluster_upgrade.transformations.cluster.7.0 =
       transform_vips = my_project.transformations:transform_cluster_vips
 
 on first line we have entripoint name where
-* ``nailgun.cluster_upgrade.transformations`` - namespace where all
-  transformations defined.
+
+* ``nailgun.cluster_upgrade.transformations`` - namespace where all transformations defined.
 * ``cluster`` - name of object which data transformed
 * ``7.0`` - cluster version where these transformations should happen
 
 on the second line
-* ``transform_vips`` - unique transformation name that you can use in
-  configuration file or in transformation manager
+
+* ``transform_vips`` - unique transformation name that you can use in configuration file or in transformation manager
 * ``my_project.transformations`` - module name
 * ``transform_cluster_vips`` - transformer function name
 
