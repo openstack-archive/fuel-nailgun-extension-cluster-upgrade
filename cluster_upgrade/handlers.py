@@ -18,6 +18,7 @@ import copy
 import six
 
 from nailgun.api.v1.handlers import base
+from nailgun.extensions.manager import update_extensions_for_object
 from nailgun import objects
 from nailgun.task import manager
 
@@ -53,6 +54,7 @@ class ClusterUpgradeCloneHandler(base.BaseHandler):
         request_data = self.checked_data(cluster=orig_cluster)
         new_cluster = upgrade.UpgradeHelper.clone_cluster(orig_cluster,
                                                           request_data)
+        update_extensions_for_object(new_cluster.cluster, ['cluster_upgrade'])
         return new_cluster.to_dict()
 
 
