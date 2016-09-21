@@ -18,13 +18,31 @@ import os
 
 from nailgun import extensions
 
-from . import handlers
+from cluster_upgrade import handlers
+
+
+class UpgradePipeline(extensions.BasePipeline):
+    @classmethod
+    def process_deployment_for_cluster(cls, cluster, cluster_data):
+        from cluster_upgrade.objects.relations import UpgradeRelationObject
+
+        relation = UpgradeRelationObject.get_cluster_relation(cluster.id)
+        cluster_data['upgrade'] = {
+            'relation_info': {
+                'orig_cluster_id': relation.orig_cluster_id,
+                'seed_cluster_id': relation.seed_cluster_id,
+            }
+        }
 
 
 class ClusterUpgradeExtension(extensions.BaseExtension):
     name = 'cluster_upgrade'
     version = '0.0.1'
     description = "Cluster Upgrade Extension"
+
+    data_pipelines = [
+        UpgradePipeline,
+    ]
 
     urls = [
         {'uri': r'/clusters/(?P<cluster_id>\d+)/upgrade/clone/?$',
