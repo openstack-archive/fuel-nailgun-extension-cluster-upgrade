@@ -19,6 +19,7 @@ import six
 
 from nailgun.api.v1.handlers import base
 from nailgun import errors
+from nailgun.extensions.manager import update_extensions_for_object
 from nailgun import objects
 from nailgun.task import manager
 
@@ -61,6 +62,7 @@ class ClusterUpgradeCloneHandler(base.BaseHandler):
             raise errors.InvalidData("Network changes during upgrade"
                                      " is not supported.")
 
+        update_extensions_for_object(new_cluster.cluster, ['cluster_upgrade'])
         return new_cluster.to_dict()
 
 
