@@ -53,10 +53,15 @@ class TestPipeline(base.BaseCloneClusterTest):
             self.dst_cluster_db, []
         )
 
+        orig_release = self.src_cluster_db.release
+        seed_release = self.dst_cluster_db.release
+
         expected = {
             'relation_info': {
                 'orig_cluster_id': self.src_cluster_db.id,
                 'seed_cluster_id': self.dst_cluster_db.id,
+                'orig_cluster_version': orig_release.environment_version,
+                'seed_cluster_version': seed_release.environment_version,
             }
         }
 

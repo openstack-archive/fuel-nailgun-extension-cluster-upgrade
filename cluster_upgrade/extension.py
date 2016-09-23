@@ -17,6 +17,7 @@
 import os
 
 from nailgun import extensions
+from nailgun.objects import Cluster
 
 from cluster_upgrade import handlers
 
@@ -27,10 +28,16 @@ class UpgradePipeline(extensions.BasePipeline):
         from cluster_upgrade.objects.relations import UpgradeRelationObject
 
         relation = UpgradeRelationObject.get_cluster_relation(cluster.id)
+
+        orig_env = Cluster.get_by_uid(relation.orig_cluster_id)
+        seed_env = Cluster.get_by_uid(relation.seed_cluster_id)
+
         cluster_data['upgrade'] = {
             'relation_info': {
                 'orig_cluster_id': relation.orig_cluster_id,
                 'seed_cluster_id': relation.seed_cluster_id,
+                'orig_cluster_version': orig_env.release.environment_version,
+                'seed_cluster_version': seed_env.release.environment_version
             }
         }
 
