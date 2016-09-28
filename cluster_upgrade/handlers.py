@@ -204,3 +204,9 @@ class CreateUpgradeReleaseHandler(base.BaseHandler):
         del data['id']
         new_release = objects.Release.create(data)
         return objects.Release.to_dict(new_release)
+
+
+class CleanupHandler(base.BaseHandler):
+    @base.handle_errors
+    def POST(self, cluster_id):
+        pass

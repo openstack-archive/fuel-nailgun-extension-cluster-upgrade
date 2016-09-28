@@ -61,6 +61,8 @@ class ClusterUpgradeExtension(extensions.BaseExtension):
         {'uri': r'/clusters/(?P<cluster_id>\d+)/upgrade/clone_release/'
                 r'(?P<release_id>\d+)/?$',
          'handler': handlers.CreateUpgradeReleaseHandler},
+        {'uri': r'/clusters/(?P<cluster_id>\d+)/upgrade/clenup/',
+         'handler': handlers.CleanupHandler},
     ]
 
     @classmethod
