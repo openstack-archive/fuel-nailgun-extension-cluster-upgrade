@@ -19,7 +19,7 @@ import six
 
 from nailgun.api.v1.handlers import base
 from nailgun import errors
-from nailgun.extensions.manager import update_extensions_for_object
+from nailgun.extensions import manager as ext_manager
 from nailgun import objects
 from nailgun.task import manager
 
@@ -62,7 +62,9 @@ class ClusterUpgradeCloneHandler(base.BaseHandler):
             raise errors.InvalidData("Network changes during upgrade"
                                      " is not supported.")
 
-        update_extensions_for_object(new_cluster.cluster, ['cluster_upgrade'])
+        ext_manager.update_extensions_for_object(
+            new_cluster.cluster, ['cluster_upgrade']
+        )
         return new_cluster.to_dict()
 
 
@@ -204,3 +206,10 @@ class CreateUpgradeReleaseHandler(base.BaseHandler):
         del data['id']
         new_release = objects.Release.create(data)
         return objects.Release.to_dict(new_release)
+
+
+class CleanupHandler(base.BaseHandler):
+    @base.handle_errors
+    def POST(self, cluster_id):
+        cluster = self.get_object_or_404(objects.Cluster, cluster_id)
+        ext_manager.remove_extensions_from_object(cluster, ['cluster_upgrade'])
