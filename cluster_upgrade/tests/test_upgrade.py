@@ -229,60 +229,82 @@ class TestUpgradeHelperCloneCluster(base_tests.BaseCloneClusterTest):
         self.assertEqual('image',
                          attrs['editable']['provision']['method']['value'])
 
-    def check_different_attributes(self, orig_cluster, new_cluster):
+    def _check_different_attributes(self, orig_cluster, new_cluster):
         release = new_cluster.release.id
         nodegroups_id_maping = self.helper.get_nodegroups_id_mapping(
             orig_cluster, new_cluster
         )
+        keys = ['release', 'id', 'group_id']
         orig_ngs = self.serialize_nets(orig_cluster.cluster)['networks']
         seed_ngs = self.serialize_nets(new_cluster.cluster)['networks']
-        for seed_ng in seed_ngs:
-            for orig_ng in orig_ngs:
-                if orig_ng['name'] == seed_ng['name'] \
-                        and orig_ng['name'] != "fuelweb_admin":
-
+        for orig_ng in orig_ngs:
+            if (orig_ng['name'] == 'fuelweb_admin' and
+                    not orig_ng.get('group_id')):
+                continue
+            for seed_ng in seed_ngs:
+                if not seed_ng.get('group_id'):
+                    continue
+                if (orig_ng['name'] == seed_ng['name'] and
+                        (nodegroups_id_maping[orig_ng['group_id']] == seed_ng[
+                            'group_id'])):
                     self.assertEqual(seed_ng['group_id'],
                                      nodegroups_id_maping[orig_ng['group_id']])
-
                     if seed_ng.get('release'):
                         self.assertEqual(seed_ng['release'], release)
-
-    def skip_different_attributes(self, orig_cluster, new_cluster):
-        orig_ngs = self.serialize_nets(orig_cluster.cluster)['networks']
-        seed_ngs = self.serialize_nets(new_cluster.cluster)['networks']
-        keys = ['release', 'id', 'group_id']
-        orig_ngs_names = {ng['name']: ng for ng in orig_ngs}
-        for seed_ng in seed_ngs:
-            if seed_ng['name'] == 'fuelweb_admin':
-                continue
-            orig_ng = orig_ngs_names.get(seed_ng['name'])
-            if not orig_ng:
-                continue
-            for key in keys:
-                orig_ng.pop(key, None)
-                seed_ng.pop(key, None)
+                    for key in keys:
+                        orig_ng.pop(key, None)
+                        seed_ng.pop(key, None)
+                    break
         return orig_ngs, seed_ngs
 
-    def test_sync_network_groups(self):
+    def _clone_cluster(self, template, multiple_node_groups):
+        if multiple_node_groups:
+            data = {
+                'name': 'custom',
+                'cluster_id': self.src_cluster.id
+            }
+            adapters.NailgunNodeGroupAdapter.create(data)
         new_cluster = self.helper.create_cluster_clone(self.src_cluster,
                                                        self.data)
-        self.helper.sync_network_groups(self.src_cluster, new_cluster)
-        self.check_different_attributes(self.src_cluster, new_cluster)
-        orig_ngs, seed_ngs = self.skip_different_attributes(self.src_cluster,
-                                                            new_cluster)
-        self.assertEqual(orig_ngs, seed_ngs)
+        if multiple_node_groups:
+            self.helper.copy_node_groups(self.src_cluster, new_cluster)
+        if template:
+            net_template = self.env.read_fixtures(['network_template_80'])[0]
+            new_cluster.network_template = net_template
 
-    def test_remove_network_groups(self):
-        new_cluster = self.helper.create_cluster_clone(self.src_cluster,
-                                                       self.data)
+        return new_cluster
+
+    def sync_network_groups(self, template=None, multiple_node_groups=None):
+        new_cluster = self._clone_cluster(template, multiple_node_groups)
+        self.helper.sync_network_groups(self.src_cluster, new_cluster)
+        orig_ngs, seed_ngs = self._check_different_attributes(self.src_cluster,
+                                                              new_cluster)
+        self.assertItemsEqual(orig_ngs, seed_ngs)
+
+    def test_sync_network_groups(self):
+        self.sync_network_groups()
+
+    def test_sync_network_groups_with_template(self):
+        self.sync_network_groups(template=True)
+
+    def test_sync_network_groups_with_multiple_node_groups(self):
+        self.sync_network_groups(multiple_node_groups=True)
+
+    def remove_network_groups(self, multiple_node_groups=False):
+        new_cluster = self._clone_cluster(None, multiple_node_groups)
         self.helper.remove_network_groups(new_cluster)
         seed_ngs = self.serialize_nets(new_cluster.cluster)['networks']
         self.assertEqual(len(seed_ngs), 1)
         self.assertEqual(seed_ngs[0]['name'], 'fuelweb_admin')
 
-    def test_copy_network_groups(self):
-        new_cluster = self.helper.create_cluster_clone(self.src_cluster,
-                                                       self.data)
+    def test_remove_network_groups(self):
+        self.remove_network_groups()
+
+    def test_remove_network_groups_with_multiple_node_groups(self):
+        self.remove_network_groups(multiple_node_groups=True)
+
+    def copy_network_groups(self, template=None, multiple_node_groups=None):
+        new_cluster = self._clone_cluster(template, multiple_node_groups)
         nodegroups_id_maping = self.helper.get_nodegroups_id_mapping(
             self.src_cluster, new_cluster
         )
@@ -290,10 +312,18 @@ class TestUpgradeHelperCloneCluster(base_tests.BaseCloneClusterTest):
         self.helper.remove_network_groups(new_cluster)
         self.helper.copy_network_groups(self.src_cluster, nodegroups_id_maping,
                                         release)
-        self.check_different_attributes(self.src_cluster, new_cluster)
-        orig_ngs, seed_ngs = self.skip_different_attributes(self.src_cluster,
-                                                            new_cluster)
-        self.assertEqual(orig_ngs, seed_ngs)
+        orig_ngs, seed_ngs = self._check_different_attributes(self.src_cluster,
+                                                              new_cluster)
+        self.assertItemsEqual(orig_ngs, seed_ngs)
+
+    def test_copy_network_groups(self):
+        self.copy_network_groups()
+
+    def test_copy_network_groups_with_template(self):
+        self.copy_network_groups(template=True)
+
+    def test_copy_network_groups_with_multiple_node_groups(self):
+        self.copy_network_groups(multiple_node_groups=True)
 
     def test_change_env_settings_no_editable_provision(self):
         new_cluster = self.helper.create_cluster_clone(self.src_cluster,

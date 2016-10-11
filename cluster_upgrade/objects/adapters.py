@@ -239,6 +239,21 @@ class NailgunNetworkGroupAdapter(object):
     def __init__(self, network_group):
         self.network_group = network_group
 
+    @classmethod
+    def create(cls, data):
+        network_group = objects.NetworkGroup.create(data)
+        return cls(network_group)
+
+    @classmethod
+    def update(cls, net_group, data):
+        network_group = objects.NetworkGroup.update(net_group.network_group,
+                                                    data)
+        return cls(network_group)
+
+    @classmethod
+    def delete(cls, network_group):
+        objects.NetworkGroup.delete(network_group)
+
     @property
     def id(self):
         return self.network_group.id
@@ -254,3 +269,14 @@ class NailgunNetworkGroupAdapter(object):
     @classmethod
     def get_by_uid(cls, ng_id):
         return objects.NetworkGroup.get_by_uid(ng_id)
+
+
+class NailgunNodeGroupAdapter(object):
+
+    def __init__(self, node_group):
+        self.node_group = node_group
+
+    @classmethod
+    def create(cls, data):
+        node_group = objects.NodeGroup.create(data)
+        return cls(node_group)
