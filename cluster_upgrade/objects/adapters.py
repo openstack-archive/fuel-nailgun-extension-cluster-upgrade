@@ -55,6 +55,10 @@ class NailgunClusterAdapter(object):
     def generated_attrs(self):
         return self.cluster.attributes.generated
 
+    @property
+    def roles_metadata(self):
+        return self.cluster.roles_metadata
+
     @generated_attrs.setter
     def generated_attrs(self, attrs):
         self.cluster.attributes.generated = attrs
