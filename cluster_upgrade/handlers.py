@@ -80,6 +80,7 @@ class NodeReassignHandler(base.BaseHandler):
 
     @base.handle_errors
     @base.validate
+    @base.serialize
     def POST(self, cluster_id):
         """Reassign nodes to the given cluster.
 
@@ -92,7 +93,9 @@ class NodeReassignHandler(base.BaseHandler):
 
         :param cluster_id: ID of the cluster nodes should be assigned to.
         :returns: None
-        :http: * 202 (OK)
+        :http: * 202 (OK, A task which was accepted to provision
+                      successfully moved nodes)
+               * 200 (OK, A list of nodes which are successfully moved)
                * 400 (Incorrect node state, problem with task execution,
                       conflicting or incorrect roles)
                * 404 (Cluster or node not found)
@@ -104,11 +107,11 @@ class NodeReassignHandler(base.BaseHandler):
         reprovision = data.get('reprovision', True)
         given_roles = data.get('roles', [])
 
-        nodes_to_provision = []
+        nodes = []
         for node_id in data['nodes_ids']:
             node = adapters.NailgunNodeAdapter(
                 self.get_object_or_404(objects.Node, node_id))
-            nodes_to_provision.append(node.node)
+            nodes.append(node.node)
 
             roles, pending_roles = upgrade.UpgradeHelper.get_node_roles(
                 reprovision, node.roles, given_roles)
@@ -116,7 +119,9 @@ class NodeReassignHandler(base.BaseHandler):
                 node, cluster, roles, pending_roles)
 
         if reprovision:
-            self.handle_task(cluster_id, nodes_to_provision)
+            self.handle_task(cluster_id, nodes)
+        else:
+            return objects.NodeCollection.to_list(nodes)
 
 
 class CopyVIPsHandler(base.BaseHandler):
