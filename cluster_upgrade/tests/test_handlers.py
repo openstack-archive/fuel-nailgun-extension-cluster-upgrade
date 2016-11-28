@@ -127,12 +127,13 @@ class TestNodeReassignHandler(base.BaseIntegrationTest):
             cluster_kwargs={'api': False},
             nodes_kwargs=[{'status': consts.NODE_STATUSES.ready,
                            'roles': ['controller']}])
-        node = cluster.nodes[0]
         seed_cluster = self.env.create_cluster(api=False)
 
-        data = {'nodes_ids': [node.id],
+        new_roles = ['compute']
+        nodes_ids = [node.id for node in cluster.nodes]
+        data = {'nodes_ids': nodes_ids,
                 'reprovision': False,
-                'roles': ['compute']}
+                'roles': new_roles}
         resp = self.app.post(
             reverse('NodeReassignHandler',
                     kwargs={'cluster_id': seed_cluster.id}),
@@ -141,6 +142,10 @@ class TestNodeReassignHandler(base.BaseIntegrationTest):
         self.assertEqual(200, resp.status_code)
         self.assertFalse(mcast.called)
         self.assertEqual(node.roles, ['compute'])
+        for node in resp.json_body:
+            self.assertEqual(node["cluster"], seed_cluster.id)
+            self.assertEqual(node["roles"], new_roles)
+            self.assertIn(node["id"], nodes_ids)
 
     def test_node_reassign_handler_no_node(self):
         cluster = self.env.create_cluster()
