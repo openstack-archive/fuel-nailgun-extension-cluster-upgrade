@@ -238,11 +238,16 @@ class TestClusterTransformers(nailgun_test_base.BaseUnitTest):
 
     def test_manager(self):
         man = cluster.Manager()  # verify default config and entry points
-        self.assertEqual(man.transformers, [(version.StrictVersion('9.0'), [
-            cluster.transform_dns_list,
-            cluster.transform_ntp_list,
-            cluster.drop_generated_provision,
-        ])])
+        self.assertEqual(man.transformers, [
+            (version.StrictVersion('6.1'), [
+                cluster.enable_ibp,
+            ]),
+            (version.StrictVersion('9.0'), [
+                cluster.transform_dns_list,
+                cluster.transform_ntp_list,
+                cluster.drop_generated_provision,
+            ])
+        ])
 
 
 class TestVipTransformers(nailgun_test_base.BaseUnitTest):
