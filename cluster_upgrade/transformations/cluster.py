@@ -45,8 +45,13 @@ def drop_generated_provision(data):
     return data
 
 
+def enable_ibp(data):
+    data['editable']['provision']['method']['value'] = 'image'
+
+
 class Manager(transformations.Manager):
     default_config = {
         '9.0': ['dns_list', 'ntp_list', 'drop_provision'],
+        '6.0': ['image_provision'],
     }
     name = 'cluster'
