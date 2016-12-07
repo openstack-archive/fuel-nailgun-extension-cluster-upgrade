@@ -252,33 +252,36 @@ class TestClusterTransformers(nailgun_test_base.BaseUnitTest):
 
 class TestVipTransformers(nailgun_test_base.BaseUnitTest):
     def setUp(self):
-        ip = '0.0.0.0'
+        vip_dict = {'ip_addr': '0.0.0.0'}
         self.data = {
             1: {
-                'haproxy': ip,
-                'vrouter': ip,
-                'test': ip,
+                'haproxy': dict(vip_dict),
+                'vrouter': dict(vip_dict),
+                'test': dict(vip_dict),
             },
             2: {
-                'haproxy': ip,
-                'vrouter': ip,
-                'test': ip,
+                'haproxy': dict(vip_dict),
+                'vrouter': dict(vip_dict),
+                'test': dict(vip_dict),
             }
         }
         self.mapping = {1: 'management', 2: 'public'}
 
     def test_vip_transform(self):
-        ip = '0.0.0.0'
+        new_haproxy_vip_dict = {'ip_addr': '0.0.0.0',
+                                'vip_namespace': 'haproxy'}
+        new_vrouter_vip_dict = {'ip_addr': '0.0.0.0',
+                                'vip_namespace': 'vrouter'}
 
         data = vip.transform_vips((self.data, self.mapping))
         self.assertEqual(
             data, ({
                 1: {
-                    'management': ip,
-                    'vrouter': ip,
+                    'management': new_haproxy_vip_dict,
+                    'vrouter': new_vrouter_vip_dict,
                 },
                 2: {
-                    'public': ip,
-                    'vrouter_pub': ip,
+                    'public': new_haproxy_vip_dict,
+                    'vrouter_pub': new_vrouter_vip_dict,
                 }}, {1: 'management', 2: 'public'})
         )
