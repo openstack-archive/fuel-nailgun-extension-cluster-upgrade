@@ -51,6 +51,8 @@ def transform_vips(data):
 
             new_vip_name = ng_vip_rules[vip_name]
             renamed_vips[ng_id][new_vip_name] = vip_addr
+            # Old vip_name is actually the same as vip_namespace
+            renamed_vips[ng_id][new_vip_name]['vip_namespace'] = vip_name
 
     return renamed_vips, id_name_mapping
 
