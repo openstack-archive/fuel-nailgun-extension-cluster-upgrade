@@ -41,6 +41,12 @@ def transform_vips(data):
             "vrouter": "vrouter_pub",
         },
     }
+    vip_ns_rules = {
+        "vrouter": "vrouter",
+        "vrouter_pub": "vrouter",
+        "public": "haproxy"
+        "management": "haproxy",
+    }
     renamed_vips = collections.defaultdict(dict)
     vips, id_name_mapping = data
     for ng_id, vips_obj in vips.items():
@@ -51,6 +57,12 @@ def transform_vips(data):
 
             new_vip_name = ng_vip_rules[vip_name]
             renamed_vips[ng_id][new_vip_name] = vip_addr
+            # When migrating from 6.x, vip_namespace key is not set for
+            # public/management vips
+            if 'vip_namespace' not in renamed_vips[ng_id][new_vip_name] and \:
+               new_vip_name in vip_ns_rules:
+                vip_ns = vip_ns_rules[new_vip_name]
+                renamed_vips[ng_id][new_vip_name]['vip_namespace'] = vip_ns
 
     return renamed_vips, id_name_mapping
 
