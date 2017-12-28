@@ -167,8 +167,8 @@ class TestNodeReassignHandler(base.BaseIntegrationTest):
             headers=self.default_headers,
             expect_errors=True)
         self.assertEqual(400, resp.status_code)
-        self.assertRegexpMatches(resp.json_body['message'],
-                                 "^Node should be in one of statuses:")
+        self.assertRegex(resp.json_body['message'],
+                         "^Node should be in one of statuses:")
 
     def test_node_reassing_handler_wrong_error_type(self):
         cluster = self.env.create(
@@ -183,8 +183,8 @@ class TestNodeReassignHandler(base.BaseIntegrationTest):
             headers=self.default_headers,
             expect_errors=True)
         self.assertEqual(400, resp.status_code)
-        self.assertRegexpMatches(resp.json_body['message'],
-                                 "^Node should be in error state")
+        self.assertRegex(resp.json_body['message'],
+                         "^Node should be in error state")
 
     def test_node_reassign_handler_to_the_same_cluster(self):
         cluster = self.env.create(
